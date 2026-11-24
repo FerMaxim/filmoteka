@@ -28,7 +28,7 @@ jobs:
         if: steps.scope.outputs.suite != 'docs'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/filmoteka-buildkit
+          path: ${{ github.workspace }}/.tooling/filmoteka-buildkit
           key: ${{ runner.os }}-${{ runner.arch }}-filmoteka-${{ hashFiles('Dockerfile', 'pyproject.toml', 'uv.lock', 'compose.ci.yaml') }}
       - name: Create the CI builder
         if: steps.scope.outputs.suite != 'docs'
@@ -36,7 +36,7 @@ jobs:
       - run: python3 tools/check.py full
         if: steps.scope.outputs.suite != 'docs'
         env:
-          FILMOTEKA_CI_CACHE: ${{ runner.temp }}/filmoteka-buildkit
+          FILMOTEKA_CI_CACHE: ${{ github.workspace }}/.tooling/filmoteka-buildkit
           FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-checks.log
       - name: Upload the check report
         if: always()
@@ -45,7 +45,7 @@ jobs:
           name: filmoteka-checks
           path: ${{ runner.temp }}/filmoteka-checks.log
           retention-days: 7
-          if-no-files-found: ignore
+          if-no-files-found: error
   quality-gate:
     runs-on: ubuntu-latest
     if: always()
