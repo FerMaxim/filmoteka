@@ -15,13 +15,24 @@ def run(args, env=None):
     try:
         result = subprocess.run(args, cwd=ROOT, env=env)
     except FileNotFoundError as error:
-        raise SystemExit(f"Command unavailable: {args[0]}") from error
-    print(
-        f"{args[0]} {args[-1]}: exit {result.returncode}, {time.monotonic() - start:.1f}s",
-        flush=True,
-    )
+        message = f"Command unavailable: {Path(args[0]).name}"
+        write_report(message)
+        raise SystemExit(message) from error
+    command = " ".join([Path(args[0]).name, *args[1:]])
+    message = f"{command}: exit {result.returncode}, {time.monotonic() - start:.1f}s"
+    print(message, flush=True)
+    write_report(message)
     if result.returncode:
         raise SystemExit(result.returncode)
+
+
+def write_report(message):
+    if path := os.environ.get("FILMOTEKA_CHECK_REPORT"):
+        try:
+            with Path(path).open("a", encoding="utf-8") as report:
+                report.write(f"{message}\n")
+        except OSError as error:
+            print(f"Could not write the check report: {error}", file=sys.stderr)
 
 
 def check_code(env=None):
@@ -61,6 +72,9 @@ def stack(mode, node):
         "-f",
         "compose.test.yaml",
     ]
+    use_ci_cache = bool(env.get("FILMOTEKA_CI_CACHE"))
+    if use_ci_cache:
+        compose.extend(["-f", "compose.ci.yaml"])
 
     def command(*args):
         run([*compose, *args], env)
@@ -70,7 +84,8 @@ def stack(mode, node):
 
     primary_failed = False
     try:
-        command("build", "checks", "web")
+        builder = ["--builder", "filmoteka-ci"] if use_ci_cache else []
+        command("build", *builder, "checks", "web")
         command("up", "-d", "--wait", "--wait-timeout", "90", "test-db")
         if mode == "full":
             check("tools/check.py", "code-in-container")

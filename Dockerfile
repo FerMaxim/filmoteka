@@ -11,11 +11,15 @@ FROM base AS runtime
 COPY --from=builder /app/.venv /app/.venv
 COPY filmoteka filmoteka
 COPY manage.py .
+RUN mkdir staticfiles && DJANGO_SETTINGS_MODULE=filmoteka.quick_settings \
+    DJANGO_SECRET_KEY=collectstatic DJANGO_ALLOWED_HOSTS=localhost \
+    python manage.py collectstatic --noinput
 USER 10001
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "filmoteka.wsgi"]
 
 FROM builder AS test
-RUN uv sync --frozen && PLAYWRIGHT_BROWSERS_PATH=/opt/browsers playwright install --with-deps chromium
+RUN uv sync --frozen && PLAYWRIGHT_BROWSERS_PATH=/opt/browsers playwright install --with-deps chromium \
+    && mkdir staticfiles
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/browsers
 COPY . .
 USER 10001
