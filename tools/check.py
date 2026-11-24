@@ -1,0 +1,119 @@
+import argparse
+import os
+import secrets
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+PYTHON = sys.executable
+
+
+def run(args, env=None):
+    start = time.monotonic()
+    result = subprocess.run(args, cwd=ROOT, env=env)
+    print(
+        f"{args[0]} {args[-1]}: exit {result.returncode}, {time.monotonic() - start:.1f}s",
+        flush=True,
+    )
+    if result.returncode:
+        raise SystemExit(result.returncode)
+
+
+def isolated_env():
+    marker = secrets.token_hex(8)
+    return {
+        **os.environ,
+        "DJANGO_SETTINGS_MODULE": "filmoteka.test_settings",
+        "DJANGO_SECRET_KEY": secrets.token_urlsafe(48),
+        "DJANGO_ALLOWED_HOSTS": "testserver,localhost",
+        "FILMOTEKA_TEST_RUN": marker,
+        "POSTGRES_HOST": "test-db",
+        "POSTGRES_DB": f"test_{marker}",
+        "POSTGRES_USER": f"role_{marker}",
+        "POSTGRES_PASSWORD": secrets.token_urlsafe(32),
+    }
+
+
+def quick(env):
+    for args in [
+        ["-m", "ruff", "check", "."],
+        ["-m", "ruff", "format", "--check", "."],
+        ["manage.py", "check"],
+        ["manage.py", "makemigrations", "--check", "--dry-run"],
+        ["-m", "pytest", "-q", "tests/test_health.py", "tests/test_target.py"],
+    ]:
+        run([PYTHON, *args], env)
+
+
+def stack(mode, node):
+    marker = secrets.token_hex(8)
+    env = {
+        **os.environ,
+        "TEST_RUN": marker,
+        "TEST_PASSWORD": secrets.token_urlsafe(32),
+        "TEST_SECRET": secrets.token_urlsafe(48),
+    }
+    compose = [
+        "docker",
+        "compose",
+        "-p",
+        f"filmoteka-{marker}",
+        "-f",
+        "compose.test.yaml",
+    ]
+
+    def command(*args):
+        run([*compose, *args], env)
+
+    def check(*args):
+        command("run", "--rm", "--no-deps", "checks", "python", *args)
+
+    try:
+        command("build", "checks", "web")
+        command("up", "-d", "--wait", "--wait-timeout", "90", "test-db")
+        check("-m", "tools.verify_db")
+        check("manage.py", "migrate", "--noinput")
+        if mode == "target":
+            check("-m", "pytest", "-q", node)
+            return
+        if mode == "full":
+            check("tools/check.py", "quick-in-container")
+        command("up", "-d", "web")
+        check("-m", "tools.smoke")
+        if mode in {"browser", "full"}:
+            check("-m", "tools.browser")
+    finally:
+        command("down", "-v", "--remove-orphans")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "mode",
+        choices=[
+            "docs",
+            "quick",
+            "full",
+            "browser",
+            "smoke",
+            "target",
+            "quick-in-container",
+        ],
+    )
+    parser.add_argument("node", nargs="?")
+    args = parser.parse_args()
+    if "DATABASE_URL" in os.environ and args.mode != "docs":
+        parser.error("Unset DATABASE_URL before running checks")
+    if args.mode == "docs":
+        run([PYTHON, "tools/docs.py"])
+    elif args.mode == "quick":
+        quick(isolated_env())
+    elif args.mode == "quick-in-container":
+        run([PYTHON, "-m", "tools.verify_db"])
+        quick(os.environ)
+    elif args.mode == "target" and not args.node:
+        parser.error("target requires a pytest node ID")
+    else:
+        stack(args.mode, args.node)
