@@ -20,7 +20,9 @@ CMD ["gunicorn", "--bind", "0.0.0.0:8000", "filmoteka.wsgi"]
 FROM builder AS test
 RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
     && uv sync --frozen && PLAYWRIGHT_BROWSERS_PATH=/opt/browsers playwright install --with-deps chromium \
-    && mkdir staticfiles
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/browsers
+    && mkdir staticfiles /var/cache/filmoteka-checks && chown 10001 /var/cache/filmoteka-checks
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/browsers \
+    RUFF_CACHE_DIR=/var/cache/filmoteka-checks/ruff \
+    PYTEST_ADDOPTS="-o cache_dir=/var/cache/filmoteka-checks/pytest"
 COPY . .
 USER 10001
