@@ -1,0 +1,34 @@
+x-env: &test-env
+  DJANGO_SETTINGS_MODULE: filmoteka.test_settings
+  DJANGO_SECRET_KEY: ${TEST_SECRET:?}
+  DJANGO_ALLOWED_HOSTS: web,localhost,testserver
+  FILMOTEKA_TEST_RUN: ${TEST_RUN:?}
+  POSTGRES_HOST: test-db
+  POSTGRES_DB: test_${TEST_RUN:?}
+  POSTGRES_USER: role_${TEST_RUN:?}
+  POSTGRES_PASSWORD: ${TEST_PASSWORD:?}
+services:
+  test-db:
+    image: postgres:17.12-bookworm@sha256:1eff563f6c868b9b433566e9f3cf6e5c79fbd3b95bf70ec7277d376cdbfc50d7
+    environment:
+      POSTGRES_DB: test_${TEST_RUN:?}
+      POSTGRES_USER: role_${TEST_RUN:?}
+      POSTGRES_PASSWORD: ${TEST_PASSWORD:?}
+    command: ["postgres", "-c", "filmoteka.run=${TEST_RUN:?}"]
+    tmpfs: [/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 2s
+      timeout: 3s
+      retries: 25
+  web:
+    build: {context: ., target: runtime}
+    environment: *test-env
+    depends_on:
+      test-db: {condition: service_healthy}
+  checks:
+    build: {context: ., target: test}
+    environment: *test-env
+networks:
+  default:
+    internal: true

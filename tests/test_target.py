@@ -1,0 +1,76 @@
+import os
+import subprocess
+import sys
+from unittest.mock import MagicMock
+
+import pytest
+from django.core.exceptions import ImproperlyConfigured
+from django.db.backends.postgresql.base import DatabaseWrapper as PostgreSQLWrapper
+
+from filmoteka.test_postgresql.base import DatabaseWrapper
+
+pytestmark = pytest.mark.quick
+
+
+@pytest.fixture
+def isolated_target(monkeypatch):
+    marker = "0123456789abcdef"
+    env = {
+        "DJANGO_SETTINGS_MODULE": "filmoteka.test_settings",
+        "FILMOTEKA_TEST_RUN": marker,
+        "POSTGRES_HOST": "test-db",
+        "POSTGRES_DB": f"test_{marker}",
+        "POSTGRES_USER": f"role_{marker}",
+        "POSTGRES_PASSWORD": "unused",
+    }
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    return {
+        "host": env["POSTGRES_HOST"],
+        "port": "5432",
+        "dbname": env["POSTGRES_DB"],
+        "user": env["POSTGRES_USER"],
+    }
+
+
+def test_reject_wrong_host_before_connection(isolated_target):
+    result = subprocess.run(
+        [sys.executable, "manage.py", "check"],
+        env={**os.environ, "POSTGRES_HOST": "unreachable.invalid"},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "Unexpected test database target" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "overrides", [{"dbname": "postgres"}, {"hostaddr": "127.0.0.1"}]
+)
+def test_reject_changed_connection_parameters(monkeypatch, isolated_target, overrides):
+    connect = MagicMock()
+    monkeypatch.setattr(PostgreSQLWrapper, "get_new_connection", connect)
+
+    with pytest.raises(ImproperlyConfigured, match="connection parameters"):
+        DatabaseWrapper({}).get_new_connection({**isolated_target, **overrides})
+
+    connect.assert_not_called()
+
+
+def test_reject_wrong_marker_before_returning_connection(monkeypatch, isolated_target):
+    raw_connection = MagicMock()
+    cursor = raw_connection.cursor.return_value.__enter__.return_value
+    cursor.fetchone.return_value = (
+        isolated_target["dbname"],
+        isolated_target["user"],
+        "wrong",
+    )
+    monkeypatch.setattr(
+        PostgreSQLWrapper, "get_new_connection", MagicMock(return_value=raw_connection)
+    )
+
+    with pytest.raises(ImproperlyConfigured, match="Unexpected test database identity"):
+        DatabaseWrapper({}).get_new_connection(isolated_target)
+
+    cursor.execute.assert_called_once()
+    raw_connection.close.assert_called_once()
