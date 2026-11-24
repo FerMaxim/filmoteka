@@ -8,12 +8,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
+if not __package__:
+    sys.path.insert(0, str(ROOT))
 
 
-def run(args, env=None):
+def run(args, env=None, *, output=None):
     start = time.monotonic()
     try:
-        result = subprocess.run(args, cwd=ROOT, env=env)
+        result = subprocess.run(
+            args,
+            cwd=ROOT,
+            env=env,
+            stdout=output,
+            stderr=subprocess.STDOUT if output is not None else None,
+        )
     except FileNotFoundError as error:
         message = f"Command unavailable: {Path(args[0]).name}"
         write_report(message)
@@ -45,70 +53,46 @@ def check_code(env=None):
         run([PYTHON, *args], env)
 
 
-def quick():
-    env = {
-        **os.environ,
-        "DJANGO_SETTINGS_MODULE": "filmoteka.quick_settings",
+def test_env():
+    return {
+        **{
+            key: value
+            for key, value in os.environ.items()
+            if not key.upper().startswith(
+                ("PG", "POSTGRES_", "DJANGO_", "FILMOTEKA_TEST_")
+            )
+            and key.upper() != "DATABASE_URL"
+        },
         "DJANGO_SECRET_KEY": secrets.token_urlsafe(48),
-        "DJANGO_ALLOWED_HOSTS": "testserver,localhost",
+        "DJANGO_ALLOWED_HOSTS": "testserver,127.0.0.1",
     }
+
+
+def quick():
+    env = {**test_env(), "DJANGO_SETTINGS_MODULE": "filmoteka.quick_settings"}
     check_code(env)
     run([PYTHON, "-m", "pytest", "-q", "-m", "quick"], env)
 
 
 def stack(mode, node):
-    marker = secrets.token_hex(8)
-    env = {
-        **os.environ,
-        "TEST_RUN": marker,
-        "TEST_PASSWORD": secrets.token_urlsafe(32),
-        "TEST_SECRET": secrets.token_urlsafe(48),
-    }
-    compose = [
-        "docker",
-        "compose",
-        "-p",
-        f"filmoteka-{marker}",
-        "-f",
-        "compose.test.yaml",
-    ]
-    use_ci_cache = bool(env.get("FILMOTEKA_CI_CACHE"))
-    if use_ci_cache:
-        compose.extend(["-f", "compose.ci.yaml"])
+    from tools.native import django_server, postgres_cluster, temporary_workspace
 
-    def command(*args):
-        run([*compose, *args], env)
-
-    def check(*args):
-        command("run", "--rm", "--no-deps", "checks", "python", *args)
-
-    primary_failed = False
-    try:
-        builder = ["--builder", "filmoteka-ci"] if use_ci_cache else []
-        command("build", *builder, "checks", "web")
-        command("up", "-d", "--wait", "--wait-timeout", "90", "test-db")
+    with (
+        temporary_workspace() as folder,
+        postgres_cluster(folder, test_env(), run) as env,
+    ):
         if mode == "full":
-            check("tools/check.py", "code-in-container")
-        check("manage.py", "migrate", "--noinput")
+            check_code(env)
+        run([PYTHON, "manage.py", "migrate", "--noinput"], env)
         if mode == "target":
-            check("-m", "pytest", "-q", node)
+            run([PYTHON, "-m", "pytest", "-q", node], env)
             return
         if mode == "full":
-            check("-m", "pytest", "-q")
-        command("up", "-d", "web")
-        check("-m", "tools.smoke")
-        if mode in {"browser", "full"}:
-            check("-m", "tools.browser")
-    except BaseException:
-        primary_failed = True
-        raise
-    finally:
-        try:
-            command("down", "-v", "--remove-orphans")
-        except (OSError, SystemExit) as cleanup_error:
-            if not primary_failed:
-                raise
-            print(f"Compose cleanup failed: {cleanup_error}", file=sys.stderr)
+            run([PYTHON, "-m", "pytest", "-q"], env)
+        with django_server(folder, env, ROOT) as url:
+            run([PYTHON, "-m", "tools.smoke", url], env)
+            if mode in {"browser", "full"}:
+                run([PYTHON, "-m", "tools.browser", url], env)
 
 
 if __name__ == "__main__":
@@ -122,21 +106,14 @@ if __name__ == "__main__":
             "browser",
             "smoke",
             "target",
-            "code-in-container",
         ],
     )
     parser.add_argument("node", nargs="?")
     args = parser.parse_args()
-    if "DATABASE_URL" in os.environ and args.mode != "docs":
-        parser.error("Unset DATABASE_URL before running checks")
     if args.mode == "docs":
         run([PYTHON, "tools/docs.py"])
     elif args.mode == "quick":
         quick()
-    elif args.mode == "code-in-container":
-        if os.environ.get("DJANGO_SETTINGS_MODULE") != "filmoteka.test_settings":
-            parser.error("code-in-container requires isolated test settings")
-        check_code()
     elif args.mode == "target" and not args.node:
         parser.error("target requires a pytest node ID")
     else:

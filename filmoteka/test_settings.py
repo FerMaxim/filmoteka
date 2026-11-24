@@ -9,7 +9,6 @@ DATABASES = {
     "default": {
         **DATABASES["default"],
         "ENGINE": "filmoteka.test_postgresql",
-        "PORT": "5432",
         "TEST": {"NAME": DATABASES["default"]["NAME"]},
     }
 }

@@ -1,9 +1,0 @@
-services:
-  web:
-    build:
-      cache_from: ["type=local,src=${FILMOTEKA_CI_CACHE:?}/runtime"]
-      cache_to: ["type=local,dest=${FILMOTEKA_CI_CACHE:?}/runtime,mode=max,ignore-error=true"]
-  checks:
-    build:
-      cache_from: ["type=local,src=${FILMOTEKA_CI_CACHE:?}/test"]
-      cache_to: ["type=local,dest=${FILMOTEKA_CI_CACHE:?}/test,mode=max,ignore-error=true"]
