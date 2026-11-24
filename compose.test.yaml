@@ -9,7 +9,7 @@ x-env: &test-env
   POSTGRES_PASSWORD: ${TEST_PASSWORD:?}
 services:
   test-db:
-    image: postgres:17-bookworm@sha256:1eff563f6c868b9b433566e9f3cf6e5c79fbd3b95bf70ec7277d376cdbfc50d7
+    image: postgres:17.12-bookworm@sha256:1eff563f6c868b9b433566e9f3cf6e5c79fbd3b95bf70ec7277d376cdbfc50d7
     environment:
       POSTGRES_DB: test_${TEST_RUN:?}
       POSTGRES_USER: role_${TEST_RUN:?}
@@ -17,7 +17,7 @@ services:
     command: ["postgres", "-c", "filmoteka.run=${TEST_RUN:?}"]
     tmpfs: [/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\""]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 2s
       timeout: 3s
       retries: 25

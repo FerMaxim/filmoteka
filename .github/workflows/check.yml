@@ -15,8 +15,15 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Select checks
+        id: scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 tools/ci_scope.py "$BASE_SHA" >> "$GITHUB_OUTPUT"
       - run: python3 tools/check.py docs
       - run: python3 tools/check.py full
+        if: steps.scope.outputs.suite != 'docs'
   quality-gate:
     runs-on: ubuntu-latest
     if: always()

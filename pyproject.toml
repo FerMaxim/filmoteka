@@ -15,6 +15,7 @@ dev = ["pytest", "pytest-django", "playwright", "ruff"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = ["quick: fast checks that run without a database"]
 
 [tool.ruff]
 extend-exclude = [".tooling"]

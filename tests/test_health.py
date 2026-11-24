@@ -1,6 +1,9 @@
 from unittest.mock import patch
 
+import pytest
 from django.db import OperationalError
+
+pytestmark = pytest.mark.quick
 
 
 def test_live(client):

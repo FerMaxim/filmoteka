@@ -12,7 +12,10 @@ PYTHON = sys.executable
 
 def run(args, env=None):
     start = time.monotonic()
-    result = subprocess.run(args, cwd=ROOT, env=env)
+    try:
+        result = subprocess.run(args, cwd=ROOT, env=env)
+    except FileNotFoundError as error:
+        raise SystemExit(f"Command unavailable: {args[0]}") from error
     print(
         f"{args[0]} {args[-1]}: exit {result.returncode}, {time.monotonic() - start:.1f}s",
         flush=True,
@@ -21,30 +24,25 @@ def run(args, env=None):
         raise SystemExit(result.returncode)
 
 
-def isolated_env():
-    marker = secrets.token_hex(8)
-    return {
-        **os.environ,
-        "DJANGO_SETTINGS_MODULE": "filmoteka.test_settings",
-        "DJANGO_SECRET_KEY": secrets.token_urlsafe(48),
-        "DJANGO_ALLOWED_HOSTS": "testserver,localhost",
-        "FILMOTEKA_TEST_RUN": marker,
-        "POSTGRES_HOST": "test-db",
-        "POSTGRES_DB": f"test_{marker}",
-        "POSTGRES_USER": f"role_{marker}",
-        "POSTGRES_PASSWORD": secrets.token_urlsafe(32),
-    }
-
-
-def quick(env):
+def check_code(env=None):
     for args in [
         ["-m", "ruff", "check", "."],
         ["-m", "ruff", "format", "--check", "."],
         ["manage.py", "check"],
         ["manage.py", "makemigrations", "--check", "--dry-run"],
-        ["-m", "pytest", "-q", "tests/test_health.py", "tests/test_target.py"],
     ]:
         run([PYTHON, *args], env)
+
+
+def quick():
+    env = {
+        **os.environ,
+        "DJANGO_SETTINGS_MODULE": "filmoteka.quick_settings",
+        "DJANGO_SECRET_KEY": secrets.token_urlsafe(48),
+        "DJANGO_ALLOWED_HOSTS": "testserver,localhost",
+    }
+    check_code(env)
+    run([PYTHON, "-m", "pytest", "-q", "-m", "quick"], env)
 
 
 def stack(mode, node):
@@ -70,22 +68,32 @@ def stack(mode, node):
     def check(*args):
         command("run", "--rm", "--no-deps", "checks", "python", *args)
 
+    primary_failed = False
     try:
         command("build", "checks", "web")
         command("up", "-d", "--wait", "--wait-timeout", "90", "test-db")
-        check("-m", "tools.verify_db")
+        if mode == "full":
+            check("tools/check.py", "code-in-container")
         check("manage.py", "migrate", "--noinput")
         if mode == "target":
             check("-m", "pytest", "-q", node)
             return
         if mode == "full":
-            check("tools/check.py", "quick-in-container")
+            check("-m", "pytest", "-q")
         command("up", "-d", "web")
         check("-m", "tools.smoke")
         if mode in {"browser", "full"}:
             check("-m", "tools.browser")
+    except BaseException:
+        primary_failed = True
+        raise
     finally:
-        command("down", "-v", "--remove-orphans")
+        try:
+            command("down", "-v", "--remove-orphans")
+        except (OSError, SystemExit) as cleanup_error:
+            if not primary_failed:
+                raise
+            print(f"Compose cleanup failed: {cleanup_error}", file=sys.stderr)
 
 
 if __name__ == "__main__":
@@ -99,7 +107,7 @@ if __name__ == "__main__":
             "browser",
             "smoke",
             "target",
-            "quick-in-container",
+            "code-in-container",
         ],
     )
     parser.add_argument("node", nargs="?")
@@ -109,10 +117,11 @@ if __name__ == "__main__":
     if args.mode == "docs":
         run([PYTHON, "tools/docs.py"])
     elif args.mode == "quick":
-        quick(isolated_env())
-    elif args.mode == "quick-in-container":
-        run([PYTHON, "-m", "tools.verify_db"])
-        quick(os.environ)
+        quick()
+    elif args.mode == "code-in-container":
+        if os.environ.get("DJANGO_SETTINGS_MODULE") != "filmoteka.test_settings":
+            parser.error("code-in-container requires isolated test settings")
+        check_code()
     elif args.mode == "target" and not args.node:
         parser.error("target requires a pytest node ID")
     else:
