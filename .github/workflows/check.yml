@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -24,44 +24,40 @@ jobs:
       - run: python3 tools/check.py docs
         env:
           FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-checks.log
-      - name: Cache container dependencies
+      - name: Set up uv and package cache
         if: steps.scope.outputs.suite != 'docs'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
-          path: ${{ github.workspace }}/.tooling/filmoteka-buildkit
-          key: ${{ runner.os }}-${{ runner.arch }}-filmoteka-${{ hashFiles('Dockerfile', 'pyproject.toml', 'uv.lock', 'compose.ci.yaml') }}
-      - name: Create the CI builder
+          version: "0.13.9"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ runner.arch }}-py313
+      - name: Install PostgreSQL 17
         if: steps.scope.outputs.suite != 'docs'
-        run: docker buildx create --driver docker-container --name filmoteka-ci --use
-      - run: python3 tools/check.py full
-        if: steps.scope.outputs.suite != 'docs'
-        env:
-          FILMOTEKA_CI_CACHE: ${{ github.workspace }}/.tooling/filmoteka-buildkit
-          FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-checks.log
-      - name: Verify dev Compose restart with persistent data
-        if: steps.scope.outputs.suite != 'docs'
-        env:
-          COMPOSE_PROJECT_NAME: filmoteka-dev-${{ github.run_id }}-${{ github.run_attempt }}
-          POSTGRES_DB: dev_smoke
-          POSTGRES_USER: dev_smoke
-          DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
         run: |
           set -euo pipefail
-          export POSTGRES_PASSWORD="$(openssl rand -hex 32)"
-          export DJANGO_SECRET_KEY="$(openssl rand -hex 48)"
-          trap 'docker compose down -v' EXIT
-          docker compose up -d --build --wait --wait-timeout 90
-          curl -fsS http://localhost:8000/health/ready | jq -e '.status == "ready"'
-          cluster_id() {
-            docker compose exec -T db psql -XAt -v ON_ERROR_STOP=1 -U dev_smoke -d dev_smoke \
-              -c 'select system_identifier from pg_control_system()'
-          }
-          initial_id="$(cluster_id)"
-          test -n "$initial_id"
-          docker compose down
-          docker compose up -d --wait --wait-timeout 90
-          test "$(cluster_id)" = "$initial_id"
-          curl -fsS http://localhost:8000/health/ready | jq -e '.status == "ready"'
+          if [[ ! -x /usr/lib/postgresql/17/bin/postgres ]]; then
+            sudo install -d /usr/share/postgresql-common/pgdg
+            sudo curl --fail --silent --show-error --output /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+              https://www.postgresql.org/media/keys/ACCC4CF8.asc
+            echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' \
+              | sudo tee /etc/apt/sources.list.d/filmoteka-pgdg.list > /dev/null
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends postgresql-common
+            echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf > /dev/null
+            sudo apt-get install -y --no-install-recommends postgresql-17
+          fi
+          echo "PG_BIN=/usr/lib/postgresql/17/bin" >> "$GITHUB_ENV"
+      - name: Install locked dependencies and Playwright Chromium
+        if: steps.scope.outputs.suite != 'docs'
+        run: |
+          uv sync --locked --python 3.13
+          uv run --locked --no-sync python -m playwright install --with-deps --only-shell chromium
+      - name: Run the full native suite
+        if: steps.scope.outputs.suite != 'docs'
+        env:
+          FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-checks.log
+        run: uv run --locked --no-sync python tools/check.py full
       - name: Upload the check report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

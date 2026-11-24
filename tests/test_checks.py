@@ -1,44 +1,45 @@
 import sys
+from contextlib import nullcontext
 
 import pytest
 
-from tools import check
+from tools import check, native
 from tools.ci_scope import docs_only
 
 pytestmark = pytest.mark.quick
 
 
-@pytest.mark.parametrize("use_cache", [False, True])
-def test_full_runs_the_entire_pytest_collection_once(monkeypatch, tmp_path, use_cache):
+def test_full_runs_the_entire_pytest_collection_once(monkeypatch):
     commands = []
     monkeypatch.setattr(check, "run", lambda args, env: commands.append(args))
-    monkeypatch.delenv("FILMOTEKA_CI_CACHE", raising=False)
-    if use_cache:
-        monkeypatch.setenv("FILMOTEKA_CI_CACHE", str(tmp_path))
+    monkeypatch.setattr(native, "postgres_cluster", lambda *args: nullcontext({}))
+    monkeypatch.setattr(
+        native, "django_server", lambda *args: nullcontext("http://test")
+    )
 
     check.stack("full", None)
 
-    assert ("compose.ci.yaml" in commands[0]) is use_cache
-    assert ("--builder" in commands[0]) is use_cache
-    assert [args[args.index("run") :] for args in commands if "pytest" in args] == [
-        ["run", "--rm", "--no-deps", "checks", "python", "-m", "pytest", "-q"]
+    assert [args[1:] for args in commands if "pytest" in args] == [
+        ["-m", "pytest", "-q"]
     ]
 
 
 @pytest.mark.parametrize(("operation_code", "exit_code"), [(7, 7), (None, 9)])
-def test_cleanup_preserves_the_primary_failure(monkeypatch, operation_code, exit_code):
-    def run(args, env):
-        if "down" in args:
-            raise SystemExit(9)
-        if "build" in args and operation_code:
+def test_cleanup_preserves_the_primary_failure(operation_code, exit_code):
+    def cleanup():
+        raise SystemExit(9)
+
+    with pytest.raises(SystemExit) as error, native.on_exit(cleanup):
+        if operation_code:
             raise SystemExit(operation_code)
 
-    monkeypatch.setattr(check, "run", run)
-
-    with pytest.raises(SystemExit) as error:
-        check.stack("smoke", None)
-
     assert error.value.code == exit_code
+
+
+def test_dev_database_environment_is_not_inherited(monkeypatch):
+    for key in ("DATABASE_URL", "POSTGRES_PASSWORD", "PGPASSWORD", "PGHOSTADDR"):
+        monkeypatch.setenv(key, "dev-value")
+        assert key not in check.test_env()
 
 
 def test_only_known_documentation_paths_bypass_full():

@@ -18,7 +18,9 @@ def isolated_target(monkeypatch):
     env = {
         "DJANGO_SETTINGS_MODULE": "filmoteka.test_settings",
         "FILMOTEKA_TEST_RUN": marker,
-        "POSTGRES_HOST": "test-db",
+        "FILMOTEKA_TEST_PORT": "55432",
+        "POSTGRES_HOST": "127.0.0.1",
+        "POSTGRES_PORT": "55432",
         "POSTGRES_DB": f"test_{marker}",
         "POSTGRES_USER": f"role_{marker}",
         "POSTGRES_PASSWORD": "unused",
@@ -27,16 +29,19 @@ def isolated_target(monkeypatch):
         monkeypatch.setenv(key, value)
     return {
         "host": env["POSTGRES_HOST"],
-        "port": "5432",
+        "port": env["POSTGRES_PORT"],
         "dbname": env["POSTGRES_DB"],
         "user": env["POSTGRES_USER"],
     }
 
 
-def test_reject_wrong_host_before_connection(isolated_target):
+@pytest.mark.parametrize(
+    "override", [{"POSTGRES_HOST": "unreachable.invalid"}, {"POSTGRES_PORT": "5432"}]
+)
+def test_reject_wrong_target_before_connection(isolated_target, override):
     result = subprocess.run(
         [sys.executable, "manage.py", "check"],
-        env={**os.environ, "POSTGRES_HOST": "unreachable.invalid"},
+        env={**os.environ, **override},
         capture_output=True,
         text=True,
     )
@@ -45,7 +50,7 @@ def test_reject_wrong_host_before_connection(isolated_target):
 
 
 @pytest.mark.parametrize(
-    "overrides", [{"dbname": "postgres"}, {"hostaddr": "127.0.0.1"}]
+    "overrides", [{"dbname": "postgres"}, {"hostaddr": "127.0.0.1"}, {"port": "5432"}]
 )
 def test_reject_changed_connection_parameters(monkeypatch, isolated_target, overrides):
     connect = MagicMock()
