@@ -18,7 +18,8 @@ USER 10001
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "filmoteka.wsgi"]
 
 FROM builder AS test
-RUN uv sync --frozen && PLAYWRIGHT_BROWSERS_PATH=/opt/browsers playwright install --with-deps chromium \
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
+    && uv sync --frozen && PLAYWRIGHT_BROWSERS_PATH=/opt/browsers playwright install --with-deps chromium \
     && mkdir staticfiles
 ENV PLAYWRIGHT_BROWSERS_PATH=/opt/browsers
 COPY . .

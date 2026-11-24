@@ -38,6 +38,30 @@ jobs:
         env:
           FILMOTEKA_CI_CACHE: ${{ github.workspace }}/.tooling/filmoteka-buildkit
           FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-checks.log
+      - name: Verify dev Compose restart with persistent data
+        if: steps.scope.outputs.suite != 'docs'
+        env:
+          COMPOSE_PROJECT_NAME: filmoteka-dev-${{ github.run_id }}-${{ github.run_attempt }}
+          POSTGRES_DB: dev_smoke
+          POSTGRES_USER: dev_smoke
+          DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+        run: |
+          set -euo pipefail
+          export POSTGRES_PASSWORD="$(openssl rand -hex 32)"
+          export DJANGO_SECRET_KEY="$(openssl rand -hex 48)"
+          trap 'docker compose down -v' EXIT
+          docker compose up -d --build --wait --wait-timeout 90
+          curl -fsS http://localhost:8000/health/ready | jq -e '.status == "ready"'
+          cluster_id() {
+            docker compose exec -T db psql -XAt -v ON_ERROR_STOP=1 -U dev_smoke -d dev_smoke \
+              -c 'select system_identifier from pg_control_system()'
+          }
+          initial_id="$(cluster_id)"
+          test -n "$initial_id"
+          docker compose down
+          docker compose up -d --wait --wait-timeout 90
+          test "$(cluster_id)" = "$initial_id"
+          curl -fsS http://localhost:8000/health/ready | jq -e '.status == "ready"'
       - name: Upload the check report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
