@@ -1,3 +1,5 @@
+import os
+
 from playwright.sync_api import sync_playwright
 
 with sync_playwright() as p:
@@ -9,21 +11,21 @@ with sync_playwright() as p:
         page.set_viewport_size({"width": width, "height": 950})
         for route in ["profile", "catalog", "rating"]:
             page.goto("about:blank")
-            page.goto("http://127.0.0.1:8025/prototype/#" + route)
+            page.goto(os.environ["PROTOTYPE_URL"] + "/prototype/#" + route)
             page.screenshot(path=f"KB/ASSETS/T-003/{route}-{width}.png", full_page=True)
             assert page.evaluate(
                 "document.documentElement.scrollWidth <= innerWidth"
             ), (route, width)
         page.goto("about:blank")
-        page.goto("http://127.0.0.1:8025/prototype/#profile")
+        page.goto(os.environ["PROTOTYPE_URL"] + "/prototype/#profile")
         page.get_by_role("button", name="Скрыть сцену").click()
         page.screenshot(path=f"KB/ASSETS/T-003/fallback-{width}.png", full_page=True)
-    page.goto("http://127.0.0.1:8025/prototype/#catalog")
+    page.goto(os.environ["PROTOTYPE_URL"] + "/prototype/#catalog")
     page.get_by_role("searchbox").fill("несуществующее")
     assert page.get_by_text("Ничего не найдено.", exact=False).is_visible()
-    page.goto("http://127.0.0.1:8025/prototype/#rating")
+    page.goto(os.environ["PROTOTYPE_URL"] + "/prototype/#rating")
     page.get_by_role("button", name="Сохранить оценку").click()
-    assert page.get_by_text("Укажите общее впечатление", exact=False).is_visible()
+    assert page.get_by_text("Общее впечатление: укажите", exact=False).is_visible()
     page.get_by_label("Общее впечатление", exact=True).fill("0")
     assert page.locator("#total").inner_text() == "0.0"
     page.get_by_label("Общее впечатление", exact=True).fill("8")
@@ -41,7 +43,7 @@ with sync_playwright() as p:
     assert page.get_by_text(
         "Оценка сохранена до перезагрузки.", exact=False
     ).is_visible()
-    page.goto("http://127.0.0.1:8025/prototype/#profile")
+    page.goto(os.environ["PROTOTYPE_URL"] + "/prototype/#profile")
     page.get_by_role("button", name="Оценённое", exact=True).click()
     assert page.get_by_text("Моя оценка: 6.5").is_visible()
     page.emulate_media(reduced_motion="reduce")
