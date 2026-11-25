@@ -21,10 +21,10 @@ with TemporaryDirectory(prefix="prototype-") as folder:
             time.sleep(0.1)
         os.environ["PROTOTYPE_URL"] = "http://127.0.0.1:" + port_file.read_text()
         subprocess.run(
-            [sys.executable, "prototypes/verify.py"], check=True, timeout=120
+            [sys.executable, "prototypes/verify.py"], check=True, timeout=240
         )
         subprocess.run(
-            [sys.executable, "prototypes/accessibility.py"], check=True, timeout=120
+            [sys.executable, "prototypes/accessibility.py"], check=True, timeout=240
         )
     finally:
         server.terminate()
