@@ -604,7 +604,7 @@
   },
   "performance": {
     "profile": {
-      "lcp": 576,
+      "lcp": 600,
       "cls": 0,
       "resources": [
         {
@@ -619,7 +619,7 @@
       "imageBytes": 0
     },
     "catalog": {
-      "lcp": 524,
+      "lcp": 532,
       "cls": 0,
       "resources": [
         {
@@ -634,7 +634,7 @@
       "imageBytes": 0
     },
     "rating": {
-      "lcp": 520,
+      "lcp": 540,
       "cls": 0,
       "resources": [
         {
