@@ -7,7 +7,11 @@ from pathlib import PurePosixPath
 def docs_only(paths):
     return bool(paths) and all(
         path in {"AGENTS.md", "CHANGELOG.md"}
-        or (PurePosixPath(path).parent == PurePosixPath("KB") and path.endswith(".md"))
+        or (
+            PurePosixPath(path).parent
+            in {PurePosixPath("KB"), PurePosixPath("KB/TASKS")}
+            and path.endswith(".md")
+        )
         for path in paths
     )
 
