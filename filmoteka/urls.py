@@ -24,5 +24,6 @@ def ready(request):
 urlpatterns = [path("health/live", live), path("health/ready", ready)]
 
 urlpatterns += [
-    path("prototype/", TemplateView.as_view(template_name="prototype.html"))
+    path("", TemplateView.as_view(template_name="prototype.html")),
+    path("prototype/", TemplateView.as_view(template_name="prototype.html")),
 ]

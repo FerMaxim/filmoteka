@@ -20,12 +20,12 @@ with TemporaryDirectory(prefix="prototype-") as folder:
                 raise RuntimeError("Prototype server failed to become ready")
             time.sleep(0.1)
         os.environ["PROTOTYPE_URL"] = "http://127.0.0.1:" + port_file.read_text()
-        subprocess.run(
-            [sys.executable, "prototypes/verify.py"], check=True, timeout=240
-        )
-        subprocess.run(
-            [sys.executable, "prototypes/accessibility.py"], check=True, timeout=240
-        )
+        for script in sys.argv[1:] or [
+            "prototypes/verify.py",
+            "prototypes/accessibility.py",
+            "prototypes/home_verify.py",
+        ]:
+            subprocess.run([sys.executable, script], check=True, timeout=240)
     finally:
         server.terminate()
         server.wait(timeout=10)
