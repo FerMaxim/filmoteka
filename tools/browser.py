@@ -6,7 +6,18 @@ from pathlib import Path
 import django
 from playwright.sync_api import sync_playwright
 
+from filmoteka.test_postgresql.base import validate_target, verify_identity
+
+marker, target = validate_target()
 django.setup()
+from django.db import connection  # noqa: E402
+from django.core.exceptions import ImproperlyConfigured  # noqa: E402
+
+if connection.settings_dict["ENGINE"] != "filmoteka.test_postgresql":
+    raise ImproperlyConfigured("Browser checks require the guarded test backend")
+with connection.cursor() as cursor:
+    verify_identity(cursor, target["dbname"], target["user"], marker)
+
 from django.contrib.auth import get_user_model  # noqa: E402
 from django.core.management import call_command  # noqa: E402
 from catalog.models import Work  # noqa: E402
@@ -42,12 +53,27 @@ with sync_playwright() as playwright:
         ).is_visible()
         print("Library and database session survived application restart")
     else:
-        page.goto(url + "/me/library/")
-        assert "/accounts/login/" in page.url
-        page.get_by_label("Имя пользователя").fill(user.username)
-        page.get_by_label("Пароль").fill(password)
-        page.get_by_role("button", name="Войти", exact=True).click()
-        page.get_by_role("link", name="Каталог", exact=True).click()
+        for destination, button in [
+            ("/catalog/", "Открыть каталог"),
+            ("/me/library/", "Открыть библиотеку"),
+        ]:
+            context.clear_cookies()
+            page.goto(url + "/")
+            page.get_by_role("button", name=button, exact=True).click()
+            assert "/accounts/login/" in page.url
+            assert page.locator("input[name=next]").input_value() == destination
+            page.get_by_label("Имя пользователя").fill(user.username)
+            page.get_by_label("Пароль").fill(password)
+            page.get_by_role("button", name="Войти", exact=True).click()
+            page.wait_for_url(url + destination)
+            page.get_by_role("link", name="Filmoteka", exact=True).click()
+            page.wait_for_url(url + "/")
+            page.go_back()
+            page.wait_for_url(url + destination)
+            page.go_forward()
+            page.wait_for_url(url + "/")
+        page.get_by_role("button", name="Открыть каталог", exact=True).click()
+        page.wait_for_url(url + "/catalog/")
         page.get_by_label("Название произведения").fill("маяк")
         page.get_by_role("button", name="Найти", exact=True).click()
         page.get_by_role("heading", name="Синтетический маяк").get_by_role(

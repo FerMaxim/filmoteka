@@ -79,3 +79,27 @@ def test_reject_wrong_marker_before_returning_connection(monkeypatch, isolated_t
 
     cursor.execute.assert_called_once()
     raw_connection.close.assert_called_once()
+
+
+@pytest.mark.parametrize("marker", ["", "0123456789abcdef"])
+def test_browser_rejects_normal_settings_before_connection_or_write(tmp_path, marker):
+    sentinel = tmp_path / "connected"
+    env = {
+        **os.environ,
+        "DJANGO_SETTINGS_MODULE": "filmoteka.settings",
+        "FILMOTEKA_TEST_RUN": marker,
+    }
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import psycopg,runpy,sys; from pathlib import Path; psycopg.connect=lambda *a,path=sys.argv[1],**k: Path(path).write_text('unexpected'); sys.argv=['tools.browser','http://127.0.0.1:1']; runpy.run_module('tools.browser',run_name='__main__')",
+            str(sentinel),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "test" in result.stderr.lower()
+    assert not sentinel.exists()

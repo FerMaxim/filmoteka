@@ -17,28 +17,35 @@ with sync_playwright() as p:
         page.get_by_role("heading", name="Кино, которое остаётся с вами.").wait_for()
         assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
         page.screenshot(path=str(out / f"home-{width}.png"), full_page=True)
-    for route in ["catalog", "profile", "library"]:
+    # Real home destinations require a session; the prototype runner uses no DB.
+    for route, destination in [("catalog", "/catalog/"), ("library", "/me/library/")]:
+        page.goto(base + "/")
         page.locator(f".navlinks [data-page={route}]").click()
-        page.get_by_role("link", name="Filmoteka — главная").click()
-        assert page.url == base + "/"
-        assert page.locator("#home-title").evaluate("(e)=>e===document.activeElement")
-    page.get_by_role("button", name="Открыть каталог", exact=True).click()
+        page.wait_for_url("**/accounts/login/**")
+        assert page.locator("input[name=next]").input_value() == destination
+        page.get_by_role("link", name="Filmoteka", exact=True).click()
+        page.wait_for_url(base + "/")
+        page.go_back()
+        page.wait_for_url("**/accounts/login/**")
+        page.go_forward()
+        page.wait_for_url(base + "/")
+    # Temporary rating state belongs to the explicit demonstration route.
+    page.goto(base + "/prototype/?view=catalog")
     page.locator('[data-film="3"]').focus()
     page.keyboard.press("Enter")
     page.locator("#criterion-0").focus()
     page.keyboard.press("Home")
     page.locator("#save-rating").click()
+    page.locator(".navlinks [data-page=library]").click()
+    assert page.locator('[data-film="3"] .rating').inner_text() == "0,0"
     page.get_by_role("link", name="Filmoteka — главная").focus()
     page.keyboard.press("Enter")
-    page.get_by_role("button", name="Открыть библиотеку", exact=True).click()
-    assert page.locator('[data-film="3"] .rating').inner_text() == "0,0"
+    assert page.locator("#home-title").evaluate("(e)=>e===document.activeElement")
     page.go_back()
-    page.wait_for_function('document.activeElement.id==="home-title"')
+    page.locator('[data-tab="Оценённые"]').wait_for()
+    assert page.locator('[data-film="3"] .rating').inner_text() == "0,0"
     page.go_forward()
-    assert (
-        page.locator('[data-tab="Оценённые"]').get_attribute("aria-pressed") == "true"
-    )
-    page.get_by_role("link", name="Filmoteka — главная").click()
+    page.locator("#home-title").wait_for()
     page.reload()
     assert page.locator("#home-title").is_visible()
     page.emulate_media(reduced_motion="reduce")
@@ -48,5 +55,5 @@ with sync_playwright() as p:
     assert not errors, errors
     browser.close()
 print(
-    "PASS: root home, four widths, brand click/Enter from all sections, actions, history, reload and draft retention; no JS errors"
+    "PASS: root home, four widths, protected destinations, brand, history, reload and prototype draft retention; no JS errors"
 )
