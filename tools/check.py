@@ -77,6 +77,11 @@ def quick():
 def stack(mode, node):
     from tools.native import django_server, postgres_cluster, temporary_workspace
 
+    if mode == "full":
+        upgrade_env = test_env()
+        if "PG_BIN" in os.environ:
+            upgrade_env["PG_BIN"] = os.environ["PG_BIN"]
+        run([PYTHON, "-m", "tools.upgrade_check"], upgrade_env)
     with (
         temporary_workspace() as folder,
         postgres_cluster(folder, test_env(), run) as env,
@@ -92,7 +97,29 @@ def stack(mode, node):
         with django_server(folder, env, ROOT) as url:
             run([PYTHON, "-m", "tools.smoke", url], env)
             if mode in {"browser", "full"}:
-                run([PYTHON, "-m", "tools.browser", url], env)
+                run(
+                    [
+                        PYTHON,
+                        "-m",
+                        "tools.browser",
+                        url,
+                        str(folder / "browser-state.json"),
+                    ],
+                    env,
+                )
+        if mode in {"browser", "full"}:
+            with django_server(folder, env, ROOT) as url:
+                run(
+                    [
+                        PYTHON,
+                        "-m",
+                        "tools.browser",
+                        url,
+                        str(folder / "browser-state.json"),
+                        "reopen",
+                    ],
+                    env,
+                )
 
 
 if __name__ == "__main__":
