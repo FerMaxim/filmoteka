@@ -43,6 +43,13 @@ class Task:
     spec: str
     notes: str
 
+    @property
+    def specification_path(self):
+        if self.spec == "—":
+            return None
+        match = re.fullmatch(r"\[[^\]]+\]\(([^)]+)\)", self.spec)
+        return match[1] if match else None
+
 
 def parse_backlog(text, *, historical=False):
     tasks = {}
@@ -72,9 +79,8 @@ def parse_backlog(text, *, historical=False):
         if task_id in tasks:
             errors.append(f"{label}: duplicate ID {task_id}")
             continue
-        tasks[task_id] = Task(
-            task_id, title, stage, owner, deployment, blocker, spec, notes
-        )
+        task = Task(task_id, title, stage, owner, deployment, blocker, spec, notes)
+        tasks[task_id] = task
         if stage not in STATES:
             errors.append(f"{label}: invalid stage")
         if (checked == "x") != (stage in TERMINAL):
@@ -96,9 +102,13 @@ def parse_backlog(text, *, historical=False):
         if deployment not in DEPLOYMENTS:
             errors.append(f"{label}: invalid deployment status")
         if spec != "—":
-            target = f"TASKS/{task_id}.md"
-            if not re.fullmatch(rf"\[[^\]]+\]\({re.escape(target)}\)", spec):
-                errors.append(f"{label}: specification must link to {target}")
+            allowed = [f"TASKS/{task_id}.md"]
+            if stage in TERMINAL:
+                allowed.append(f"ARCHIVE/{task_id}.md")
+            if task.specification_path not in allowed:
+                errors.append(
+                    f"{label}: specification must link to {' or '.join(allowed)}"
+                )
     if not tasks:
         errors.append("BACKLOG: no task records")
     return tasks, errors
@@ -108,11 +118,10 @@ def read_backlog(root):
     path = root / "KB" / "BACKLOG.md"
     tasks, errors = parse_backlog(path.read_text(encoding="utf-8"))
     for task in tasks.values():
-        if (
-            task.spec != "—"
-            and not (path.parent / "TASKS" / f"{task.task_id}.md").is_file()
-        ):
-            errors.append(f"BACKLOG: missing specification TASKS/{task.task_id}.md")
+        target = task.specification_path
+        if target and re.fullmatch(rf"(?:TASKS|ARCHIVE)/{task.task_id}\.md", target):
+            if not (path.parent / target).is_file():
+                errors.append(f"BACKLOG: missing specification {target}")
     return tasks, errors
 
 
@@ -161,10 +170,15 @@ def check_docs(root):
                     errors.append(
                         f"{document.relative_to(root)}: missing anchor {link}"
                     )
-        if document.parent != root / "KB" / "TASKS" or document.name == "TEMPLATE.md":
+        relative = document.relative_to(root).as_posix()
+        active_card = (
+            document.parent == root / "KB" / "TASKS" and document.name != "TEMPLATE.md"
+        )
+        archived_card = re.fullmatch(rf"KB/ARCHIVE/{TASK_ID}\.md", relative)
+        if not (active_card or archived_card):
             continue
         task = tasks.get(document.stem)
-        if task is None or task.spec == "—":
+        if task is None or f"KB/{task.specification_path}" != relative:
             errors.append(f"{document.name}: unregistered specification")
         if not re.match(rf"^# {re.escape(document.stem)} · \S", prose):
             errors.append(f"{document.name}: invalid specification ID")
@@ -175,9 +189,13 @@ def check_docs(root):
         for section in SECTIONS:
             if not re.search(rf"^## {re.escape(section)}\s*$", text, re.M):
                 errors.append(f"{document.name}: missing section {section}")
-    current = (root / "KB" / "CURRENT_STATE.md").read_text(encoding="utf-8")
-    if "(BACKLOG.md)" not in current or re.search(r"\bT-[0-9]{3,}\b", current):
-        errors.append("CURRENT_STATE: use a pointer to BACKLOG without task records")
+    pointer = root / "KB" / "CURRENT_STATE.md"
+    if pointer.exists():
+        current = pointer.read_text(encoding="utf-8")
+        if "(BACKLOG.md)" not in current or re.search(r"\bT-[0-9]{3,}\b", current):
+            errors.append(
+                "CURRENT_STATE: use a pointer to BACKLOG without task records"
+            )
     decisions = (root / "KB" / "DECISIONS.md").read_text(encoding="utf-8")
     ids = re.findall(r"^\| (R\d+) \||^## (R\d+)\.", decisions, re.M)
     seen = set()

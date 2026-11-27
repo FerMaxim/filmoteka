@@ -7,6 +7,8 @@ DOCUMENTS = {
     "AGENTS.md",
     "CHANGELOG.md",
     "KB/ARCHITECTURE.md",
+    "KB/ARCHIVE/P3-MIGRATION.md",
+    "KB/ARCHIVE/README.md",
     "KB/AUDIT.md",
     "KB/BACKLOG.md",
     "KB/CATALOG.md",
@@ -14,8 +16,10 @@ DOCUMENTS = {
     "KB/DECISIONS.md",
     "KB/DESIGN.md",
     "KB/ENGINEERING.md",
+    "KB/HISTORY_CATALOG.md",
     "KB/HISTORY_NATIVE.md",
     "KB/HISTORY_PRE_HARNESS.md",
+    "KB/HISTORY_PRODUCT.md",
     "KB/LOCAL_DEVELOPMENT.md",
     "KB/OPERATIONS.md",
     "KB/PRODUCT.md",
@@ -28,7 +32,7 @@ DOCUMENTS = {
 
 def docs_only(paths):
     return bool(paths) and all(
-        path in DOCUMENTS or re.fullmatch(r"KB/TASKS/T-[0-9]{3,}\.md", path)
+        path in DOCUMENTS or re.fullmatch(r"KB/(?:TASKS|ARCHIVE)/T-[0-9]{3,}\.md", path)
         for path in paths
     )
 

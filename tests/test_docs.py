@@ -79,6 +79,33 @@ class DocumentationTests(unittest.TestCase):
             any("missing specification" in e for e in check_docs(self.root))
         )
 
+    def test_archived_specification_requires_a_terminal_record_and_valid_links(self):
+        archive = "KB/ARCHIVE/T-001.md"
+        (self.root / "KB/CURRENT_STATE.md").unlink()
+        (self.root / "KB/TASKS/T-001.md").unlink()
+        self.write(archive, self.card)
+        row = self.row.replace("TASKS/T-001.md", "ARCHIVE/T-001.md")
+        self.write("KB/BACKLOG.md", row)
+        self.assertTrue(
+            any("specification must link" in e for e in check_docs(self.root))
+        )
+
+        row = row.replace("[ ]", "[x]").replace("в работе", "интегрировано")
+        self.write("KB/BACKLOG.md", row)
+        self.write("AGENTS.md", f"[Evidence]({archive}#проверки)")
+        self.assertEqual(check_docs(self.root), [])
+
+        self.write(archive, self.card + "\n[Evidence](missing.png)\n")
+        self.assertTrue(any("missing missing.png" in e for e in check_docs(self.root)))
+
+        self.write(
+            "KB/BACKLOG.md",
+            self.row.replace("в работе", "интегрировано").replace("[ ]", "[x]"),
+        )
+        self.assertTrue(
+            any("unregistered specification" in e for e in check_docs(self.root))
+        )
+
     def test_invalid_specification_fields_and_missing_sections(self):
         self.write("KB/TASKS/T-001.md", "# T-002 · Task\nСтатус: на ревью\n")
         errors = check_docs(self.root)
@@ -101,10 +128,20 @@ class DocumentationTests(unittest.TestCase):
 
     def test_known_task_docs_skip_full_but_unknown_files_do_not(self):
         self.assertTrue(
-            docs_only(["KB/TASKS/T-001.md", "KB/OPERATIONS.md", "KB/BACKLOG.md"])
+            docs_only(
+                [
+                    "KB/TASKS/T-001.md",
+                    "KB/ARCHIVE/T-001.md",
+                    "KB/OPERATIONS.md",
+                    "KB/BACKLOG.md",
+                ]
+            )
         )
         for path in (
             "KB/TASKS/run.py",
+            "KB/ARCHIVE/run.py",
+            "KB/ARCHIVE/unknown.md",
+            "KB/ASSETS/DESIGN/SVET-04/HANDOFF.md",
             "KB/unknown/deep.md",
             "KB/unknown.md",
             "KB/TASKS/random.md",
