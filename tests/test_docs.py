@@ -3,8 +3,9 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from tools.ci_scope import docs_only
+from tools.ci_scope import classify, docs_only
 from tools.docs import SECTIONS, anchors, check_docs
 
 
@@ -16,10 +17,14 @@ class DocumentationTests(unittest.TestCase):
         self.write("AGENTS.md", "# Rules")
         self.write("CHANGELOG.md", "# Changes")
         self.write("KB/DECISIONS.md", "## R01. Decision")
-        self.write("KB/CURRENT_STATE.md", "## Активная задача\n[Task](TASKS/T-001.md)")
+        self.write("KB/CURRENT_STATE.md", "[Backlog](BACKLOG.md)")
+        self.row = (
+            "- [ ] T-001 Task | в работе | не требуется | нет | "
+            "[Spec](TASKS/T-001.md) | Criteria"
+        )
+        self.write("KB/BACKLOG.md", self.row)
         self.card = (
-            "# Task\nID: T-001\nСтатус: в работе\nИсполнитель: разработчик\n"
-            "Блокировка: нет\nВыкладка: не требуется\n\n"
+            "# T-001 · Task\n\n"
             + "\n\n".join(f"## {section}\nContent" for section in sorted(SECTIONS))
             + "\n"
         )
@@ -40,18 +45,47 @@ class DocumentationTests(unittest.TestCase):
         self.assertEqual(len(errors), 2)
         self.assertTrue(any("missing anchor" in error for error in errors))
 
-    def test_closed_task_cannot_be_active(self):
-        self.write("KB/TASKS/T-001.md", self.card.replace("в работе", "интегрировано"))
-        self.assertTrue(any("closed active task" in e for e in check_docs(self.root)))
+    def test_stage_checkbox_and_duplicate_active_state(self):
+        self.write("KB/BACKLOG.md", self.row + "\n" + self.row.replace("[ ]", "[x]"))
+        self.assertTrue(any("duplicate ID" in e for e in check_docs(self.root)))
+        self.write("KB/BACKLOG.md", self.row.replace("в работе", "отменено"))
+        self.assertTrue(any("checkbox disagrees" in e for e in check_docs(self.root)))
+        self.write(
+            "KB/BACKLOG.md",
+            self.row.replace("в работе", "отменено").replace("[ ]", "[x]"),
+        )
+        self.assertEqual(check_docs(self.root), [])
+        self.write(
+            "KB/CURRENT_STATE.md", "[Backlog](BACKLOG.md)\n## Активная задача\nT-001"
+        )
+        self.assertTrue(any("CURRENT_STATE:" in e for e in check_docs(self.root)))
 
-    def test_invalid_card_fields_and_missing_sections(self):
-        self.write("KB/TASKS/T-001.md", "ID: T-002\nСтатус: готово\n")
+    def test_simple_task_and_specification_links(self):
+        self.write(
+            "KB/BACKLOG.md",
+            self.row
+            + "\n- [ ] T-002 Simple | запланировано | не требуется | нет | — | Write instructions",
+        )
+        self.assertEqual(check_docs(self.root), [])
+        self.write(
+            "KB/BACKLOG.md", self.row.replace("TASKS/T-001.md", "TASKS/T-002.md")
+        )
+        self.assertTrue(
+            any("specification must link" in e for e in check_docs(self.root))
+        )
+        self.write("KB/BACKLOG.md", self.row)
+        (self.root / "KB/TASKS/T-001.md").unlink()
+        self.assertTrue(
+            any("missing specification" in e for e in check_docs(self.root))
+        )
+
+    def test_invalid_specification_fields_and_missing_sections(self):
+        self.write("KB/TASKS/T-001.md", "# T-002 · Task\nСтатус: на ревью\n")
         errors = check_docs(self.root)
         for expected in (
-            "invalid ID",
-            "invalid status",
+            "invalid specification ID",
+            "keep task state",
             "missing section",
-            "missing Исполнитель",
         ):
             self.assertTrue(any(expected in error for error in errors), expected)
 
@@ -66,9 +100,23 @@ class DocumentationTests(unittest.TestCase):
         )
 
     def test_known_task_docs_skip_full_but_unknown_files_do_not(self):
-        self.assertTrue(docs_only(["KB/TASKS/T-001.md", "KB/OPERATIONS.md"]))
-        for path in ("KB/TASKS/run.py", "KB/unknown/deep.md", "tools/docs.py"):
+        self.assertTrue(
+            docs_only(["KB/TASKS/T-001.md", "KB/OPERATIONS.md", "KB/BACKLOG.md"])
+        )
+        for path in (
+            "KB/TASKS/run.py",
+            "KB/unknown/deep.md",
+            "KB/unknown.md",
+            "KB/TASKS/random.md",
+            "tools/docs.py",
+            "tools/task.py",
+        ):
             self.assertFalse(docs_only([path]))
+
+    def test_ci_classification_errors_require_full(self):
+        with patch("tools.ci_scope.subprocess.run", side_effect=FileNotFoundError):
+            self.assertEqual(classify("a" * 40), "full")
+        self.assertEqual(classify("--cached"), "full")
 
 
 if __name__ == "__main__":
