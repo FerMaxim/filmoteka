@@ -1,4 +1,5 @@
 import sys
+from argparse import Namespace
 from contextlib import nullcontext
 
 import pytest
@@ -53,9 +54,11 @@ def test_report_records_failed_command_without_output_or_environment(
     monkeypatch, tmp_path
 ):
     report = tmp_path / "checks.log"
-    monkeypatch.setenv("FILMOTEKA_CHECK_REPORT", str(report))
+    monkeypatch.setattr(
+        check, "git_snapshot", lambda root: {"sha": "a" * 40, "clean": True}
+    )
 
-    with pytest.raises(SystemExit) as error:
+    def fail(args):
         check.run(
             [
                 sys.executable,
@@ -65,6 +68,9 @@ def test_report_records_failed_command_without_output_or_environment(
             {"TEST_PASSWORD": "secret-only-in-output"},
         )
 
+    monkeypatch.setattr(check, "execute", fail)
+    with pytest.raises(SystemExit) as error:
+        check.with_report(Namespace(mode="docs"), report)
     assert error.value.code == 7
     log = report.read_text(encoding="utf-8")
     assert "exit 7" in log

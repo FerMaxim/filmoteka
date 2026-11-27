@@ -2,6 +2,7 @@
 
 import re
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -24,6 +25,104 @@ SECTIONS = {
     "Эксплуатация",
     "Следующий шаг",
 }
+
+
+TERMINAL = {"интегрировано", "отменено"}
+TASK_ID = r"T-[0-9]{3,}"
+ROW = re.compile(rf"^- \[([ x])\] ({TASK_ID}) (\S.*?)\s+\|\s+(.*)$")
+
+
+@dataclass(frozen=True)
+class Task:
+    task_id: str
+    title: str
+    stage: str
+    owner: str
+    deployment: str
+    blocker: str
+    spec: str
+    notes: str
+
+    @property
+    def specification_path(self):
+        if self.spec == "—":
+            return None
+        match = re.fullmatch(r"\[[^\]]+\]\(([^)]+)\)", self.spec)
+        return match[1] if match else None
+
+
+def parse_backlog(text, *, historical=False):
+    tasks = {}
+    errors = []
+    fenced = False
+    for number, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith(("```", "~~~")):
+            fenced = not fenced
+        if fenced or not re.match(r"^\s*[-*+]\s+\[", line):
+            continue
+        label = f"BACKLOG:{number}"
+        match = ROW.fullmatch(line)
+        if not match:
+            errors.append(f"{label}: invalid task row")
+            continue
+        checked, task_id, title, fields = match.groups()
+        values = [field.strip() for field in fields.split("|")]
+        previous_format = historical and len(values) == 5
+        if previous_format:
+            values.insert(1, "—")
+        if len(values) != 6 or not all(values):
+            errors.append(
+                f"{label}: expected stage, owner, deployment, blocker, spec and notes"
+            )
+            continue
+        stage, owner, deployment, blocker, spec, notes = values
+        if task_id in tasks:
+            errors.append(f"{label}: duplicate ID {task_id}")
+            continue
+        task = Task(task_id, title, stage, owner, deployment, blocker, spec, notes)
+        tasks[task_id] = task
+        if stage not in STATES:
+            errors.append(f"{label}: invalid stage")
+        if (checked == "x") != (stage in TERMINAL):
+            errors.append(f"{label}: checkbox disagrees with stage")
+        if not previous_format and owner not in {
+            "разработчик",
+            "ревьюер",
+            "эксплуатация",
+        }:
+            errors.append(f"{label}: invalid owner")
+        if not previous_format and blocker != "нет":
+            scopes = []
+            for entry in blocker.split("; "):
+                match = re.fullmatch(r"(реализация|приёмка|выкладка): \S.*", entry)
+                if not match or match[1] in scopes:
+                    errors.append(f"{label}: invalid or duplicate blocker scope")
+                    break
+                scopes.append(match[1])
+        if deployment not in DEPLOYMENTS:
+            errors.append(f"{label}: invalid deployment status")
+        if spec != "—":
+            allowed = [f"TASKS/{task_id}.md"]
+            if stage in TERMINAL:
+                allowed.append(f"ARCHIVE/{task_id}.md")
+            if task.specification_path not in allowed:
+                errors.append(
+                    f"{label}: specification must link to {' or '.join(allowed)}"
+                )
+    if not tasks:
+        errors.append("BACKLOG: no task records")
+    return tasks, errors
+
+
+def read_backlog(root):
+    path = root / "KB" / "BACKLOG.md"
+    tasks, errors = parse_backlog(path.read_text(encoding="utf-8"))
+    for task in tasks.values():
+        target = task.specification_path
+        if target and re.fullmatch(rf"(?:TASKS|ARCHIVE)/{task.task_id}\.md", target):
+            if not (path.parent / target).is_file():
+                errors.append(f"BACKLOG: missing specification {target}")
+    return tasks, errors
 
 
 def anchors(text):
@@ -51,13 +150,13 @@ def anchors(text):
 
 
 def check_docs(root):
-    errors = []
+    tasks, errors = read_backlog(root)
     documents = [root / "AGENTS.md", root / "CHANGELOG.md"]
     documents += sorted((root / "KB").rglob("*.md"))
-    tasks = {}
     for document in documents:
         text = document.read_text(encoding="utf-8")
-        for link in re.findall(r"\]\(([^)]+)\)", text):
+        prose = re.sub(r"^(```|~~~).*?^\1[^\n]*$", "", text, flags=re.M | re.S)
+        for link in re.findall(r"\[[^\]\n]+\]\(([^)\n]+)\)", prose):
             target = urlsplit(link)
             if target.scheme or target.netloc:
                 continue
@@ -71,33 +170,32 @@ def check_docs(root):
                     errors.append(
                         f"{document.relative_to(root)}: missing anchor {link}"
                     )
-        if document.parent != root / "KB" / "TASKS" or document.name == "TEMPLATE.md":
+        relative = document.relative_to(root).as_posix()
+        active_card = (
+            document.parent == root / "KB" / "TASKS" and document.name != "TEMPLATE.md"
+        )
+        archived_card = re.fullmatch(rf"KB/ARCHIVE/{TASK_ID}\.md", relative)
+        if not (active_card or archived_card):
             continue
-        fields = dict(re.findall(r"^([^:\n]+): (.+)$", text, re.M))
-        task_id = fields.get("ID", "")
-        if not re.fullmatch(r"T-\d{3,}", task_id) or document.stem != task_id:
-            errors.append(f"{document.name}: invalid ID")
-        if task_id in tasks:
-            errors.append(f"{document.name}: duplicate ID {task_id}")
-        tasks[task_id] = fields
-        for field in ("Исполнитель", "Блокировка"):
-            if not fields.get(field, "").strip():
-                errors.append(f"{document.name}: missing {field}")
-        if fields.get("Статус") not in STATES:
-            errors.append(f"{document.name}: invalid status")
-        if fields.get("Выкладка") not in DEPLOYMENTS:
-            errors.append(f"{document.name}: invalid deployment status")
+        task = tasks.get(document.stem)
+        if task is None or f"KB/{task.specification_path}" != relative:
+            errors.append(f"{document.name}: unregistered specification")
+        if not re.match(rf"^# {re.escape(document.stem)} · \S", prose):
+            errors.append(f"{document.name}: invalid specification ID")
+        if re.search(
+            r"^(ID|Статус|Исполнитель|Ответственный|Блокировка|Выкладка):", text, re.M
+        ):
+            errors.append(f"{document.name}: keep task state in BACKLOG")
         for section in SECTIONS:
-            if f"## {section}\n" not in text:
+            if not re.search(rf"^## {re.escape(section)}\s*$", text, re.M):
                 errors.append(f"{document.name}: missing section {section}")
-    current = (root / "KB" / "CURRENT_STATE.md").read_text(encoding="utf-8")
-    active = re.search(r"^## Активная задача\n(.*?)(?=^## |\Z)", current, re.M | re.S)
-    if not active:
-        errors.append("CURRENT_STATE: missing active task section")
-    else:
-        for task_id in re.findall(r"TASKS/(T-\d{3,})\.md", active[1]):
-            if tasks.get(task_id, {}).get("Статус") in {"интегрировано", "отменено"}:
-                errors.append(f"CURRENT_STATE: closed active task {task_id}")
+    pointer = root / "KB" / "CURRENT_STATE.md"
+    if pointer.exists():
+        current = pointer.read_text(encoding="utf-8")
+        if "(BACKLOG.md)" not in current or re.search(r"\bT-[0-9]{3,}\b", current):
+            errors.append(
+                "CURRENT_STATE: use a pointer to BACKLOG without task records"
+            )
     decisions = (root / "KB" / "DECISIONS.md").read_text(encoding="utf-8")
     ids = re.findall(r"^\| (R\d+) \||^## (R\d+)\.", decisions, re.M)
     seen = set()
@@ -110,7 +208,10 @@ def check_docs(root):
 
 
 if __name__ == "__main__":
-    errors = check_docs(ROOT)
+    try:
+        errors = check_docs(ROOT)
+    except (OSError, ValueError) as error:
+        raise SystemExit(str(error)) from error
     if errors:
         raise SystemExit("\n".join(errors))
     print("Documentation links, anchors and task records OK")
