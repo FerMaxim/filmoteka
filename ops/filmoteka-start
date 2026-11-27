@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+exec /srv/filmoteka/current/.venv/bin/python -m gunicorn \
+    filmoteka.wsgi:application --bind 127.0.0.1:8000 \
+    --workers 1 --threads 2 --timeout 30 --error-logfile - --capture-output
