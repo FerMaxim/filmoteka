@@ -36,6 +36,8 @@ urlpatterns += [
     path("accounts/login/", SignInView.as_view()),
     path("accounts/logout/", SignOutView.as_view()),
     path("catalog/", catalog_views.catalog),
+    path("catalog/external/", catalog_views.external_search),
+    path("catalog/import/", catalog_views.import_selected),
     path("works/<int:pk>/", catalog_views.detail),
     path("me/library/", catalog_views.library),
     path("me/works/<int:pk>/library/", catalog_views.add),

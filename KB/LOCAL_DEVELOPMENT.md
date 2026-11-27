@@ -75,3 +75,9 @@ uv run --locked --no-sync python tools/check.py full
 - Старую схему отдельно проверяет `uv run --locked --no-sync python -m tools.upgrade_check`. Full проверяет старую и чистую схемы на разных кластерах.
 - Ошибка запуска браузера — проверить установленный Chromium Playwright и доступ к loopback. Full/browser создают тестового пользователя и проверяют сессию и библиотеку после restart. Cookie остаётся во временной папке; снимки в `test-results/T-005` или `FILMOTEKA_SCREENSHOTS`.
 - Прямой `tools.browser` требует test settings, тестовый backend и маркер кластера. Для проверки отдельных гостевых переходов предусмотрен `prototypes/home_verify.py`. При ограничениях Windows направить TEMP/TMP в разрешённый временный каталог и обеспечить доступ к loopback.
+
+## Проверка интеграции каталога T-008
+
+`python tools/check.py target tests/test_kinopoisk.py` использует fixtures и отдельный кластер PostgreSQL. `full` проверяет миграцию прежней схемы, HTTP, Playwright и restart со снятым разрешением. Снимки создаются в `test-results/T-008`. Диспетчер исключает наследуемые `KINOPOISK_*`, а браузер локально перехватывает обращения к постерам.
+
+В локальной среде флаги из `.env.example` по умолчанию равны 0. Условия живого режима приведены в [CATALOG](CATALOG.md#допуск-живого-режима).

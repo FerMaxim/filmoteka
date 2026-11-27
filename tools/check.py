@@ -115,7 +115,7 @@ def test_env():
             key: value
             for key, value in os.environ.items()
             if not key.upper().startswith(
-                ("PG", "POSTGRES_", "DJANGO_", "FILMOTEKA_TEST_")
+                ("PG", "POSTGRES_", "DJANGO_", "FILMOTEKA_TEST_", "KINOPOISK_")
             )
             and key.upper() != "DATABASE_URL"
         },
@@ -175,6 +175,20 @@ def stack(mode, node):
                         "reopen",
                     ],
                     env,
+                )
+
+            revoked_env = {**env, "FILMOTEKA_TEST_DATA_APPROVED": "0"}
+            with django_server(folder, revoked_env, ROOT) as url:
+                run(
+                    [
+                        PYTHON,
+                        "-m",
+                        "tools.browser",
+                        url,
+                        str(folder / "browser-state.json"),
+                        "revoked",
+                    ],
+                    revoked_env,
                 )
 
 
