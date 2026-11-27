@@ -1,0 +1,12 @@
+[Unit]
+Description=Filmoteka local readiness and disk check
+ConditionPathExists=/srv/filmoteka/current/.release-approved
+
+[Service]
+Type=oneshot
+User=filmoteka
+ExecStart=/usr/local/libexec/filmoteka-health
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

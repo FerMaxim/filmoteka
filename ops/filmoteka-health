@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+"""Local health check; logs status only, never response bodies or credentials."""
+import shutil
+import sys
+import urllib.request
+
+try:
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    for path in ("/health/live", "/health/ready"):
+        with opener.open("http://127.0.0.1:8080" + path, timeout=5) as response:
+            if response.status != 200:
+                raise RuntimeError("unhealthy")
+    disk = shutil.disk_usage("/srv/filmoteka")
+    if disk.free / disk.total < 0.15:
+        raise RuntimeError("low disk space")
+except Exception:
+    print("Filmoteka health check FAILED: inspect service and disk locally", file=sys.stderr)
+    sys.exit(1)
+print("Filmoteka local health and disk OK")

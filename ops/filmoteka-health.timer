@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Filmoteka locally each minute after release
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=10s
+RandomizedDelaySec=5s
+Unit=filmoteka-health.service
+
+[Install]
+WantedBy=timers.target
