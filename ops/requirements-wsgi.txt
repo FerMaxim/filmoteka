@@ -1,0 +1,3 @@
+# Install into each approved release venv after uv sync --locked --no-dev.
+# Independent reviewer must approve this production-only dependency.
+gunicorn==27.0.1
