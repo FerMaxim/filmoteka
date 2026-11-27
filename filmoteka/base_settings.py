@@ -7,6 +7,9 @@ DEBUG = False
 ALLOWED_HOSTS = os.environ["DJANGO_ALLOWED_HOSTS"].split(",")
 ROOT_URLCONF = "filmoteka.urls"
 INSTALLED_APPS = [
+    "accounts",
+    "catalog",
+    "collection",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -33,6 +36,18 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "filmoteka/templates"],
         "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+            ]
+        },
     }
 ]
 STATICFILES_DIRS = [BASE_DIR / "filmoteka/static"]
+
+AUTH_USER_MODEL = "accounts.User"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+LOGIN_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "/catalog/"
+LOGOUT_REDIRECT_URL = "/accounts/login/"

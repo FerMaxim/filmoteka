@@ -143,6 +143,7 @@ def postgres_cluster(folder, env, run):
 @contextmanager
 def django_server(folder, env, root):
     port_file = folder / "http-port"
+    port_file.unlink(missing_ok=True)
     process = subprocess.Popen(
         [sys.executable, "-m", "tools.test_web", str(port_file)],
         cwd=root,
