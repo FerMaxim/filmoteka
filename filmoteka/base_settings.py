@@ -27,3 +27,12 @@ LANGUAGE_CODE = "ru"
 USE_TZ = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "filmoteka/templates"],
+        "APP_DIRS": True,
+    }
+]
+STATICFILES_DIRS = [BASE_DIR / "filmoteka/static"]

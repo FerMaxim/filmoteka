@@ -1,0 +1,662 @@
+{
+  "keyboard_regression": "PASS: catalog Enter -> title -> input; collapsed invalid criterion -> open, described, focused; correction -> save -> profile -> rated",
+  "tab_order": {
+    "profile": [
+      {
+        "tag": "BUTTON",
+        "name": "Скрыть сцену",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Рекомендации",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценённое",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Хочу посмотреть",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Избранное",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "filmotekaЛичное пространство кино",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Мой профиль",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Каталог",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Скрыть сцену",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Рекомендации",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценённое",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Хочу посмотреть",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Избранное",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "filmotekaЛичное пространство кино",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Мой профиль",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Каталог",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Скрыть сцену",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Рекомендации",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценённое",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Хочу посмотреть",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Избранное",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      }
+    ],
+    "catalog": [
+      {
+        "tag": "INPUT",
+        "name": "Название произведения",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "filmotekaЛичное пространство кино",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Мой профиль",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Каталог",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Название произведения",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "filmotekaЛичное пространство кино",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Мой профиль",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Каталог",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Название произведения",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "filmotekaЛичное пространство кино",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Мой профиль",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Каталог",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Название произведения",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      }
+    ],
+    "rating": [
+      {
+        "tag": "A",
+        "name": "Вернуться в каталог",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Общее впечатление",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "SUMMARY",
+        "name": "Дополнительные критерии",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Сюжет",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Персонажи",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Визуальная составляющая",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Звуковое сопровождение",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Атмосфера",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Вовлечённость",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Послевкусие",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Радость",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Грусть",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Удивление",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Тревога",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Нежность",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "Комментарий",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Сохранить оценку",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "filmotekaЛичное пространство кино",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Мой профиль",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Каталог",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Оценить",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "A",
+        "name": "Вернуться в каталог",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Общее впечатление",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "SUMMARY",
+        "name": "Дополнительные критерии",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Сюжет",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Персонажи",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Визуальная составляющая",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Звуковое сопровождение",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Атмосфера",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Вовлечённость",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Послевкусие",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Радость",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Грусть",
+        "visible": true,
+        "hidden": false
+      },
+      {
+        "tag": "INPUT",
+        "name": "Удивление",
+        "visible": true,
+        "hidden": false
+      }
+    ]
+  },
+  "performance": {
+    "profile": {
+      "lcp": 600,
+      "cls": 0,
+      "resources": [
+        {
+          "name": "style.css",
+          "bytes": 5676
+        },
+        {
+          "name": "app.js",
+          "bytes": 5925
+        }
+      ],
+      "imageBytes": 0
+    },
+    "catalog": {
+      "lcp": 532,
+      "cls": 0,
+      "resources": [
+        {
+          "name": "style.css",
+          "bytes": 5676
+        },
+        {
+          "name": "app.js",
+          "bytes": 5925
+        }
+      ],
+      "imageBytes": 0
+    },
+    "rating": {
+      "lcp": 540,
+      "cls": 0,
+      "resources": [
+        {
+          "name": "style.css",
+          "bytes": 5676
+        },
+        {
+          "name": "app.js",
+          "bytes": 5925
+        }
+      ],
+      "imageBytes": 0
+    }
+  },
+  "contrast": {
+    "fieldBorder/field": 3.78,
+    "focus/field": 10.1,
+    "text/background": 14.97,
+    "muted/background": 9.14,
+    "placeholder/field": 7.53,
+    "text/field": 12.34,
+    "primary": 9.52,
+    "error/background": 12.25
+  }
+}

@@ -1,6 +1,7 @@
 from django.db import DatabaseError, connection
 from django.http import JsonResponse
 from django.urls import path
+from django.views.generic import TemplateView
 from django.views.decorators.http import require_safe
 
 
@@ -21,3 +22,7 @@ def ready(request):
 
 
 urlpatterns = [path("health/live", live), path("health/ready", ready)]
+
+urlpatterns += [
+    path("prototype/", TemplateView.as_view(template_name="prototype.html"))
+]

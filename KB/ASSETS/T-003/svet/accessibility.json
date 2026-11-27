@@ -1,0 +1,155 @@
+{
+  "performance": {
+    "profile": {
+      "lcp": 2752,
+      "cls": 0,
+      "resources": [
+        {
+          "name": "style.css",
+          "bytes": 42314
+        },
+        {
+          "name": "app.js",
+          "bytes": 23626
+        },
+        {
+          "name": "art-0.jpg",
+          "bytes": 70117
+        },
+        {
+          "name": "art-1.jpg",
+          "bytes": 60702
+        },
+        {
+          "name": "art-2.jpg",
+          "bytes": 61683
+        },
+        {
+          "name": "art-3.jpg",
+          "bytes": 73050
+        },
+        {
+          "name": "art-4.jpg",
+          "bytes": 58695
+        },
+        {
+          "name": "art-5.jpg",
+          "bytes": 61814
+        },
+        {
+          "name": "art-6.jpg",
+          "bytes": 57969
+        },
+        {
+          "name": "art-7.jpg",
+          "bytes": 62869
+        }
+      ],
+      "imageBytes": 506899
+    },
+    "catalog": {
+      "lcp": 2700,
+      "cls": 0,
+      "resources": [
+        {
+          "name": "style.css",
+          "bytes": 42314
+        },
+        {
+          "name": "app.js",
+          "bytes": 23626
+        },
+        {
+          "name": "art-0.jpg",
+          "bytes": 70117
+        },
+        {
+          "name": "art-1.jpg",
+          "bytes": 60702
+        },
+        {
+          "name": "art-2.jpg",
+          "bytes": 61683
+        },
+        {
+          "name": "art-3.jpg",
+          "bytes": 73050
+        },
+        {
+          "name": "art-4.jpg",
+          "bytes": 58695
+        },
+        {
+          "name": "art-5.jpg",
+          "bytes": 61814
+        },
+        {
+          "name": "art-6.jpg",
+          "bytes": 57969
+        },
+        {
+          "name": "art-7.jpg",
+          "bytes": 62869
+        }
+      ],
+      "imageBytes": 506899
+    },
+    "rating": {
+      "lcp": 2844,
+      "cls": 0,
+      "resources": [
+        {
+          "name": "style.css",
+          "bytes": 42314
+        },
+        {
+          "name": "app.js",
+          "bytes": 23626
+        },
+        {
+          "name": "art-0.jpg",
+          "bytes": 70117
+        },
+        {
+          "name": "art-1.jpg",
+          "bytes": 60702
+        },
+        {
+          "name": "art-2.jpg",
+          "bytes": 61683
+        },
+        {
+          "name": "art-3.jpg",
+          "bytes": 73050
+        },
+        {
+          "name": "art-4.jpg",
+          "bytes": 58695
+        },
+        {
+          "name": "art-5.jpg",
+          "bytes": 61814
+        },
+        {
+          "name": "art-6.jpg",
+          "bytes": 57969
+        },
+        {
+          "name": "art-7.jpg",
+          "bytes": 62869
+        }
+      ],
+      "imageBytes": 506899
+    }
+  },
+  "contrast": {
+    "fieldBorder/field": 4.36,
+    "focus/field": 8.63,
+    "text/background": 16.61,
+    "muted/background": 8.25,
+    "placeholder/field": 8.67,
+    "text/field": 14.39,
+    "primary": 11.59,
+    "error/background": 9.96
+  }
+}
