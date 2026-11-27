@@ -19,7 +19,7 @@ class DocumentationTests(unittest.TestCase):
         self.write("KB/DECISIONS.md", "## R01. Decision")
         self.write("KB/CURRENT_STATE.md", "[Backlog](BACKLOG.md)")
         self.row = (
-            "- [ ] T-001 Task | в работе | не требуется | нет | "
+            "- [ ] T-001 Task | в работе | разработчик | не требуется | нет | "
             "[Spec](TASKS/T-001.md) | Criteria"
         )
         self.write("KB/BACKLOG.md", self.row)
@@ -64,7 +64,7 @@ class DocumentationTests(unittest.TestCase):
         self.write(
             "KB/BACKLOG.md",
             self.row
-            + "\n- [ ] T-002 Simple | запланировано | не требуется | нет | — | Write instructions",
+            + "\n- [ ] T-002 Simple | запланировано | разработчик | не требуется | нет | — | Write instructions",
         )
         self.assertEqual(check_docs(self.root), [])
         self.write(

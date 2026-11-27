@@ -23,7 +23,7 @@ jobs:
         run: python3 tools/ci_scope.py "$BASE_SHA" >> "$GITHUB_OUTPUT"
       - run: python3 tools/check.py docs
         env:
-          FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-checks.log
+          FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-docs.log
       - name: Set up uv and package cache
         if: steps.scope.outputs.suite != 'docs'
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -56,14 +56,16 @@ jobs:
       - name: Run the full native suite
         if: steps.scope.outputs.suite != 'docs'
         env:
-          FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-checks.log
+          FILMOTEKA_CHECK_REPORT: ${{ runner.temp }}/filmoteka-full.log
         run: uv run --locked --no-sync python tools/check.py full
       - name: Upload the check report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: filmoteka-checks
-          path: ${{ runner.temp }}/filmoteka-checks.log
+          path: |
+            ${{ runner.temp }}/filmoteka-docs.log
+            ${{ runner.temp }}/filmoteka-full.log
           retention-days: 7
           if-no-files-found: error
   quality-gate:

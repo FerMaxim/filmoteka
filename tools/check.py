@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import secrets
 import subprocess
@@ -8,6 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON = sys.executable
+report_stream = None
+report_checks = 0
 if not __package__:
     sys.path.insert(0, str(ROOT))
 
@@ -24,23 +27,76 @@ def run(args, env=None, *, output=None):
         )
     except FileNotFoundError as error:
         message = f"Command unavailable: {Path(args[0]).name}"
-        write_report(message)
+        write_report("check", code=1, message=message)
         raise SystemExit(message) from error
     command = " ".join([Path(args[0]).name, *args[1:]])
     message = f"{command}: exit {result.returncode}, {time.monotonic() - start:.1f}s"
     print(message, flush=True)
-    write_report(message)
+    write_report("check", code=result.returncode, message=message)
     if result.returncode:
         raise SystemExit(result.returncode)
 
 
-def write_report(message):
-    if path := os.environ.get("FILMOTEKA_CHECK_REPORT"):
+def git_snapshot(root):
+    def git(*args):
+        return subprocess.check_output(
+            ["git", "--no-optional-locks", "-C", str(root), *args], timeout=15
+        )
+
+    sha = git("rev-parse", "HEAD").decode("ascii").strip()
+    clean = not git("status", "--porcelain=v1", "--untracked-files=all")
+    return {"sha": sha, "clean": clean}
+
+
+def write_report(event, **fields):
+    global report_checks
+    if report_stream is not None:
+        print(
+            json.dumps({"event": event, **fields}, ensure_ascii=False),
+            file=report_stream,
+            flush=True,
+        )
+        report_checks += event == "check"
+
+
+def execute(args):
+    if args.mode == "docs":
+        run([PYTHON, "tools/docs.py"])
+    elif args.mode == "quick":
+        quick()
+    else:
+        stack(args.mode, args.node)
+
+
+def with_report(args, path):
+    global report_stream, report_checks
+    before = git_snapshot(ROOT)
+    with Path(path).open("x", encoding="utf-8") as stream:
+        report_stream = stream
+        report_checks = 0
         try:
-            with Path(path).open("a", encoding="utf-8") as report:
-                report.write(f"{message}\n")
-        except OSError as error:
-            print(f"Could not write the check report: {error}", file=sys.stderr)
+            write_report("start", version=1, suite=args.mode, **before)
+            code = 1
+            try:
+                execute(args)
+                code = 0
+            except SystemExit as error:
+                code = (
+                    error.code
+                    if type(error.code) is int
+                    else int(error.code is not None)
+                )
+                raise
+            finally:
+                try:
+                    after = git_snapshot(ROOT)
+                    write_report("finish", code=code, checks=report_checks, **after)
+                except (OSError, subprocess.SubprocessError):
+                    if code == 0:
+                        raise
+                    print("Could not finish check report", file=sys.stderr)
+        finally:
+            report_stream = None
 
 
 def check_code(env=None):
@@ -137,11 +193,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("node", nargs="?")
     args = parser.parse_args()
-    if args.mode == "docs":
-        run([PYTHON, "tools/docs.py"])
-    elif args.mode == "quick":
-        quick()
-    elif args.mode == "target" and not args.node:
+    if args.mode == "target" and not args.node:
         parser.error("target requires a pytest node ID")
+    if report_path := os.environ.get("FILMOTEKA_CHECK_REPORT"):
+        try:
+            with_report(args, report_path)
+        except (OSError, subprocess.SubprocessError) as error:
+            parser.exit(1, f"Could not complete check report: {error}\n")
     else:
-        stack(args.mode, args.node)
+        execute(args)

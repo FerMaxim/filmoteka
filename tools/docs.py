@@ -37,18 +37,18 @@ class Task:
     task_id: str
     title: str
     stage: str
+    owner: str
     deployment: str
     blocker: str
     spec: str
     notes: str
 
 
-def read_backlog(root):
+def parse_backlog(text, *, historical=False):
     tasks = {}
     errors = []
-    path = root / "KB" / "BACKLOG.md"
     fenced = False
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    for number, line in enumerate(text.splitlines(), 1):
         if line.lstrip().startswith(("```", "~~~")):
             fenced = not fenced
         if fenced or not re.match(r"^\s*[-*+]\s+\[", line):
@@ -60,30 +60,59 @@ def read_backlog(root):
             continue
         checked, task_id, title, fields = match.groups()
         values = [field.strip() for field in fields.split("|")]
-        if len(values) != 5 or not all(values):
+        previous_format = historical and len(values) == 5
+        if previous_format:
+            values.insert(1, "—")
+        if len(values) != 6 or not all(values):
             errors.append(
-                f"{label}: expected stage, deployment, blocker, spec and notes"
+                f"{label}: expected stage, owner, deployment, blocker, spec and notes"
             )
             continue
-        stage, deployment, blocker, spec, notes = values
+        stage, owner, deployment, blocker, spec, notes = values
         if task_id in tasks:
             errors.append(f"{label}: duplicate ID {task_id}")
             continue
-        tasks[task_id] = Task(task_id, title, stage, deployment, blocker, spec, notes)
+        tasks[task_id] = Task(
+            task_id, title, stage, owner, deployment, blocker, spec, notes
+        )
         if stage not in STATES:
             errors.append(f"{label}: invalid stage")
         if (checked == "x") != (stage in TERMINAL):
             errors.append(f"{label}: checkbox disagrees with stage")
+        if not previous_format and owner not in {
+            "разработчик",
+            "ревьюер",
+            "эксплуатация",
+        }:
+            errors.append(f"{label}: invalid owner")
+        if not previous_format and blocker != "нет":
+            scopes = []
+            for entry in blocker.split("; "):
+                match = re.fullmatch(r"(реализация|приёмка|выкладка): \S.*", entry)
+                if not match or match[1] in scopes:
+                    errors.append(f"{label}: invalid or duplicate blocker scope")
+                    break
+                scopes.append(match[1])
         if deployment not in DEPLOYMENTS:
             errors.append(f"{label}: invalid deployment status")
         if spec != "—":
             target = f"TASKS/{task_id}.md"
             if not re.fullmatch(rf"\[[^\]]+\]\({re.escape(target)}\)", spec):
                 errors.append(f"{label}: specification must link to {target}")
-            elif not (path.parent / target).is_file():
-                errors.append(f"{label}: missing specification {target}")
     if not tasks:
         errors.append("BACKLOG: no task records")
+    return tasks, errors
+
+
+def read_backlog(root):
+    path = root / "KB" / "BACKLOG.md"
+    tasks, errors = parse_backlog(path.read_text(encoding="utf-8"))
+    for task in tasks.values():
+        if (
+            task.spec != "—"
+            and not (path.parent / "TASKS" / f"{task.task_id}.md").is_file()
+        ):
+            errors.append(f"BACKLOG: missing specification TASKS/{task.task_id}.md")
     return tasks, errors
 
 
@@ -139,7 +168,9 @@ def check_docs(root):
             errors.append(f"{document.name}: unregistered specification")
         if not re.match(rf"^# {re.escape(document.stem)} · \S", prose):
             errors.append(f"{document.name}: invalid specification ID")
-        if re.search(r"^(ID|Статус|Исполнитель|Блокировка|Выкладка):", text, re.M):
+        if re.search(
+            r"^(ID|Статус|Исполнитель|Ответственный|Блокировка|Выкладка):", text, re.M
+        ):
             errors.append(f"{document.name}: keep task state in BACKLOG")
         for section in SECTIONS:
             if not re.search(rf"^## {re.escape(section)}\s*$", text, re.M):
