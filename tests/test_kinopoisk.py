@@ -359,3 +359,132 @@ def test_expired_lease_recovery_and_pause_never_shortens(transport):
     assert ProviderBudget.objects.get(pk=api.scope()).pause_until == previous
     assert provider.search("a second query")[1]
     assert transport.call_count == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("stale", [False, True])
+def test_revoked_data_blocks_cache_and_import_but_preserves_entries(
+    transport, client, user, settings, stale
+):
+    query = "горизонт"
+    provider.search(query)
+    work = provider.import_work(9000001, query, 1)
+    entry = Entry.objects.create(
+        owner=user, work=work, added=True, favorite=True, want_to_watch=True, version=7
+    )
+    original = Work.objects.filter(pk=work.pk).values().get()
+    local = Work.objects.create(title="Локальная работа", kind="film")
+    if stale:
+        SearchCache.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
+    settings.KINOPOISK_DATA_APPROVED = False
+    settings.KINOPOISK_POSTERS_APPROVED = True  # Data permission takes precedence.
+    assert provider.search(query)[0] == {"items": [], "pages": 0}
+    with pytest.raises(api.Unavailable):
+        provider.result_for(provider.cache_key(query, 1), query=query)
+    for ident in (9000001, 9000002):
+        assert (
+            client.post(
+                "/catalog/import/",
+                {"external_id": ident, "q": query, "external_page": 1},
+            ).status_code
+            == 503
+        )
+    assert transport.call_count == ProviderAttempt.objects.count() == 1
+    assert Work.objects.count() == 2 and ExternalRef.objects.count() == 1
+    for url in (
+        "/catalog/external/?q=горизонт",
+        "/catalog/",
+        "/me/library/",
+        f"/works/{work.pk}/",
+    ):
+        result = client.get(url)
+        assert result.status_code == 200
+        body = result.content.decode()
+        assert work.title not in body and work.poster_url not in body
+        assert "<img " not in body
+    assert f"Произведение №{work.pk}" in client.get("/me/library/").content.decode()
+    assert local.title in client.get("/catalog/").content.decode()
+    # Invalid mutations must also avoid rendering the original metadata.
+    assert (
+        work.title
+        not in client.post(
+            f"/me/works/{work.pk}/library/", {"added": "false"}
+        ).content.decode()
+    )
+    assert (
+        client.post(f"/me/works/{local.pk}/library/", {"added": "true"}).status_code
+        == 303
+    )
+    assert (
+        client.post(f"/me/works/{work.pk}/library/", {"added": "true"}).status_code
+        == 303
+    )
+    entry.refresh_from_db()
+    assert (
+        entry.added
+        and entry.favorite
+        and entry.want_to_watch
+        and not entry.watched
+        and entry.version == 7
+    )
+    assert Work.objects.filter(pk=work.pk).values().get() == original
+    # Reapproval restores presentation without reimport or changing personal data.
+    settings.KINOPOISK_DATA_APPROVED = True
+    assert work.title in client.get(f"/works/{work.pk}/").content.decode()
+    assert transport.call_count == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("stale", [False, True])
+def test_network_disabled_keeps_approved_local_cache(
+    transport, client, user, settings, stale
+):
+    provider.search("горизонт")
+    work = provider.import_work(9000001, "горизонт", 1)
+    if stale:
+        SearchCache.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
+    settings.KINOPOISK_ENABLED = False
+    settings.KINOPOISK_API_KEY = ""
+    payload, _ = provider.search("горизонт")
+    assert len(payload["items"]) == 3
+    assert work.title in client.get(f"/works/{work.pk}/").content.decode()
+    assert provider.import_work(9000001, "горизонт", 1) == work
+    if not stale:
+        assert provider.import_work(9000002, "горизонт", 1).title == work.title
+    assert transport.call_count == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("reason", ["budget", "rate", "provider_pause"])
+def test_local_denial_never_extends_pause_or_negative_cache(
+    transport, settings, reason
+):
+    now = timezone.now()
+    state = ProviderBudget.objects.create(
+        scope=api.scope(), pause_until=now, next_allowed_at=now
+    )
+    settings.KINOPOISK_REQUEST_BUDGET = 1
+    if reason == "budget":
+        ProviderAttempt.objects.create(scope=api.scope(), created_at=now)
+    elif reason == "rate":
+        state.next_allowed_at = now + timedelta(seconds=2)
+        state.save()
+    else:
+        state.pause_until = now + timedelta(seconds=2)
+        state.save()
+    previous_pause = state.pause_until
+    for _ in range(3):
+        assert provider.search("горизонт")[1]
+        state.refresh_from_db()
+        assert state.pause_until == previous_pause
+    assert transport.call_count == 0
+    assert not SearchCache.objects.exists()
+    # Free the actual constraint, without manually resetting any induced pause.
+    if reason == "budget":
+        ProviderAttempt.objects.update(created_at=now - timedelta(hours=25))
+    elif reason == "rate":
+        ProviderBudget.objects.update(next_allowed_at=timezone.now())
+    else:
+        ProviderBudget.objects.update(pause_until=timezone.now())
+    assert not provider.search("горизонт")[1]
+    assert transport.call_count == ProviderAttempt.objects.count() == 1

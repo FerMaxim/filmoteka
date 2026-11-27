@@ -24,7 +24,8 @@ from catalog.models import Work  # noqa: E402
 
 url = sys.argv[1]
 state = Path(sys.argv[2]) if len(sys.argv) > 2 else None
-reopen = len(sys.argv) > 3 and sys.argv[3] == "reopen"
+revoked = len(sys.argv) > 3 and sys.argv[3] == "revoked"
+reopen = revoked or (len(sys.argv) > 3 and sys.argv[3] == "reopen")
 artifacts = Path(os.environ.get("FILMOTEKA_SCREENSHOTS", "test-results/T-008"))
 artifacts.mkdir(parents=True, exist_ok=True)
 if not reopen:
@@ -34,6 +35,9 @@ if not reopen:
         username="browser-alice", password=password
     )
     work = Work.objects.get(title="Синтетический маяк")
+
+if revoked:
+    imported = Work.objects.get(external_refs__external_id="9000001")
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch()
@@ -59,15 +63,46 @@ with sync_playwright() as playwright:
         assert page.get_by_role(
             "heading", name="Синтетический маяк", exact=True
         ).is_visible()
-        assert (
-            page.get_by_role(
-                "heading", name="Синтетический горизонт", exact=True
-            ).count()
-            == 1
-        )
-        print(
-            "Library, imported catalog work and database session survived application restart"
-        )
+        if revoked:
+            assert "Синтетический горизонт" not in page.content()
+            assert page.get_by_role(
+                "heading", name=f"Произведение №{imported.pk}", exact=True
+            ).is_visible()
+            assert page.get_by_text(
+                "Метаданные источника временно скрыты.", exact=True
+            ).is_visible()
+            for width in [1440, 390]:
+                page.set_viewport_size({"width": width, "height": 960})
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= innerWidth"
+                )
+                page.screenshot(
+                    path=str(artifacts / f"revoked-library-{width}.png"), full_page=True
+                )
+            page.goto(url + f"/works/{imported.pk}/")
+            assert "Синтетический горизонт" not in page.content()
+            assert page.get_by_text("В вашей библиотеке", exact=True).is_visible()
+            assert page.locator(".catalog-poster img").count() == 0
+            page.goto(url + "/catalog/?q=горизонт")
+            page.get_by_text(
+                "Внешний поиск временно недоступен. Локальные произведения доступны.",
+                exact=True,
+            ).wait_for()
+            assert "Синтетический горизонт" not in page.content()
+            assert not image_requests
+            print(
+                "Revoked data: cached search hidden, local entries/session retained, provider metadata suppressed"
+            )
+        else:
+            assert (
+                page.get_by_role(
+                    "heading", name="Синтетический горизонт", exact=True
+                ).count()
+                == 1
+            )
+            print(
+                "Library, imported catalog work and database session survived application restart"
+            )
     else:
         for destination, button in [
             ("/catalog/", "Открыть каталог"),
@@ -187,4 +222,15 @@ if not reopen:
     assert ExternalRef.objects.filter(external_id="9000001").count() == 1
     print(
         f"T-008: fixture API attempts=3; live JSON=0; intercepted image attempts={len(image_requests)}; live images=0"
+    )
+
+if revoked:
+    from catalog.models import ProviderAttempt
+    from collection.models import Entry
+
+    assert ProviderAttempt.objects.count() == 3
+    assert Entry.objects.filter(work=imported, added=True).count() == 1
+    assert Work.objects.get(pk=imported.pk).title == "Синтетический горизонт"
+    print(
+        "Revocation changed no stored work or personal data; additional fixture/live calls=0"
     )

@@ -7,6 +7,7 @@ from django.views.decorators.http import require_GET, require_POST
 from collection.services import add_to_library, library_for
 from .models import ExternalRef, Work
 from . import provider
+from .presentation import present
 from .kinopoisk import Unavailable
 from django.conf import settings
 
@@ -39,6 +40,8 @@ def catalog(request):
     status = 200
     if form.is_valid():
         works = Work.objects.filter(title__icontains=form.cleaned_data["q"])
+        if not settings.KINOPOISK_DATA_APPROVED:
+            works = works.exclude(external_refs__provider="kinopoisk_unofficial")
     else:
         status = 422
     return render(
@@ -63,7 +66,7 @@ def detail(request, pk):
         request,
         "catalog/detail.html",
         {
-            "work": work,
+            "work": present(work),
             "saved": saved,
             "posters_enabled": settings.KINOPOISK_POSTERS_APPROVED,
         },
@@ -73,14 +76,16 @@ def detail(request, pk):
 @login_required
 @require_GET
 def library(request):
+    page = Paginator(library_for(request.user), 24).get_page(request.GET.get("page"))
+    if not settings.KINOPOISK_DATA_APPROVED:
+        for entry in page:
+            entry.work = present(entry.work)
     return render(
         request,
         "collection/library.html",
         {
             "posters_enabled": settings.KINOPOISK_POSTERS_APPROVED,
-            "page": Paginator(library_for(request.user), 24).get_page(
-                request.GET.get("page")
-            ),
+            "page": page,
         },
     )
 
@@ -95,7 +100,7 @@ def add(request, pk):
             request,
             "catalog/detail.html",
             {
-                "work": work,
+                "work": present(work),
                 "error": "Не удалось добавить произведение. Повторите действие кнопкой ниже.",
             },
             status=422,

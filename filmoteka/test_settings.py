@@ -1,3 +1,5 @@
+import os
+
 from .test_postgresql.base import validate_target
 
 validate_target()
@@ -15,7 +17,7 @@ DATABASES = {
 
 # Guarded disposable database only; never contact the real provider in tests.
 KINOPOISK_ENABLED = True
-KINOPOISK_DATA_APPROVED = True
+KINOPOISK_DATA_APPROVED = os.environ.get("FILMOTEKA_TEST_DATA_APPROVED", "1") == "1"
 KINOPOISK_API_KEY = "synthetic-fixture-key"
 KINOPOISK_REQUEST_BUDGET = 450
 KINOPOISK_POSTERS_APPROVED = True

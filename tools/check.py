@@ -121,6 +121,20 @@ def stack(mode, node):
                     env,
                 )
 
+            revoked_env = {**env, "FILMOTEKA_TEST_DATA_APPROVED": "0"}
+            with django_server(folder, revoked_env, ROOT) as url:
+                run(
+                    [
+                        PYTHON,
+                        "-m",
+                        "tools.browser",
+                        url,
+                        str(folder / "browser-state.json"),
+                        "revoked",
+                    ],
+                    revoked_env,
+                )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

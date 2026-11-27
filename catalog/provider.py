@@ -20,6 +20,11 @@ from .models import (
     Work,
 )
 
+
+class LocalDenied(api.Unavailable):
+    """No provider request was made; do not change the provider backoff/cache."""
+
+
 NOTICE = "Внешний поиск временно недоступен. Локальные произведения доступны."
 
 
@@ -49,11 +54,11 @@ def reserve():
             state.pause_until > now
             or ProviderAttempt.objects.filter(scope=scope).count() >= limit
         ):
-            raise api.Unavailable()
+            raise LocalDenied()
         ProviderAttempt.objects.create(scope=scope, created_at=now)
         delay = max(0, (state.next_allowed_at - now).total_seconds())
         if delay > 1:
-            raise api.Unavailable()
+            raise LocalDenied()
         state.next_allowed_at = max(now, state.next_allowed_at) + timedelta(
             milliseconds=250
         )
@@ -87,6 +92,8 @@ def claim(key):
 
 
 def result_for(key, *, query=None, page=1, ident=None):
+    if not settings.KINOPOISK_DATA_APPROVED:
+        raise api.Unavailable()
     result = cached(key)
     if result:
         return result.payload, result.fetched_at
@@ -105,8 +112,8 @@ def result_for(key, *, query=None, page=1, ident=None):
         result = cached(key)
         if result:
             return result.payload, result.fetched_at
+        reserve()
         try:
-            reserve()
             payload = api.normalize_response(
                 api.fetch(query=query, page=page, ident=ident), ident
             )
@@ -139,6 +146,8 @@ def result_for(key, *, query=None, page=1, ident=None):
 
 
 def search(query, page=1):
+    if not settings.KINOPOISK_DATA_APPROVED:
+        return {"items": [], "pages": 0}, NOTICE
     key = cache_key(query, page)
     try:
         payload, _ = result_for(key, query=normalized_query(query), page=page)
@@ -151,6 +160,8 @@ def search(query, page=1):
 
 
 def import_work(ident, query, page):
+    if not settings.KINOPOISK_DATA_APPROVED:
+        raise api.Unavailable()
     ref = (
         ExternalRef.objects.filter(provider=api.PROVIDER, external_id=str(ident))
         .select_related("work")
