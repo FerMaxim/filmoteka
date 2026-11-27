@@ -1,0 +1,8 @@
+{% if notice %}<p role="status">{{ notice }}</p>{% endif %}
+<div class="server-grid">{% for item in items %}<article class="server-work">
+{% include 'catalog/metadata.html' %}<h2>{{ item.title }}</h2>
+<form method="post" action="/catalog/import/">{% csrf_token %}
+<input type="hidden" name="external_id" value="{{ item.external_id }}"><input type="hidden" name="q" value="{{ query }}"><input type="hidden" name="external_page" value="{{ external_page }}">
+<button class="primary" type="submit">Добавить в библиотеку</button></form></article>
+{% empty %}{% if not notice %}<p>В Кинопоиске ничего не найдено.</p>{% endif %}{% endfor %}</div>
+{% if next_external_page %}<a class="secondary" href="/catalog/?q={{ query|urlencode }}&amp;external_page={{ next_external_page }}">Следующая страница Кинопоиска</a>{% endif %}

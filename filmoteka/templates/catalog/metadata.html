@@ -1,0 +1,5 @@
+<div class="catalog-poster">
+{% if posters_enabled and item.poster_url %}<img src="{{ item.poster_url }}" loading="lazy" referrerpolicy="no-referrer" alt="Постер: {{ item.title }}" width="180" height="270">{% endif %}
+<span>Постер недоступен</span></div>
+<p class="catalog-year">{% if item.year %}{{ item.year }}{% else %}Год не указан{% endif %}</p>
+<dl class="external-ratings"><div><dt>Кинопоиск</dt><dd>{{ item.rating_kinopoisk|default_if_none:'—' }}</dd></div><div><dt>IMDb</dt><dd>{{ item.rating_imdb|default_if_none:'—' }}</dd></div></dl>

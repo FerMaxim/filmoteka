@@ -51,3 +51,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/catalog/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
+
+# Live access and images require explicit separate confirmations by operations.
+KINOPOISK_ENABLED = os.environ.get("KINOPOISK_ENABLED") == "1"
+KINOPOISK_DATA_APPROVED = os.environ.get("KINOPOISK_DATA_APPROVED") == "1"
+KINOPOISK_POSTERS_APPROVED = os.environ.get("KINOPOISK_POSTERS_APPROVED") == "1"
+KINOPOISK_API_KEY = os.environ.get("KINOPOISK_API_KEY", "")
+KINOPOISK_REQUEST_BUDGET = int(os.environ.get("KINOPOISK_REQUEST_BUDGET", "450"))

@@ -25,7 +25,7 @@ from catalog.models import Work  # noqa: E402
 url = sys.argv[1]
 state = Path(sys.argv[2]) if len(sys.argv) > 2 else None
 reopen = len(sys.argv) > 3 and sys.argv[3] == "reopen"
-artifacts = Path(os.environ.get("FILMOTEKA_SCREENSHOTS", "test-results/T-005"))
+artifacts = Path(os.environ.get("FILMOTEKA_SCREENSHOTS", "test-results/T-008"))
 artifacts.mkdir(parents=True, exist_ok=True)
 if not reopen:
     call_command("seed_synthetic")
@@ -41,6 +41,14 @@ with sync_playwright() as playwright:
         storage_state=str(state) if reopen else None, reduced_motion="reduce"
     )
     page = context.new_page()
+    image_requests = []
+    context.route(
+        "https://st.kp.yandex.net/**",
+        lambda route: (
+            image_requests.append(route.request.url),
+            route.fulfill(status=404, body=""),
+        ),
+    )
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     if reopen:
@@ -51,7 +59,15 @@ with sync_playwright() as playwright:
         assert page.get_by_role(
             "heading", name="Синтетический маяк", exact=True
         ).is_visible()
-        print("Library and database session survived application restart")
+        assert (
+            page.get_by_role(
+                "heading", name="Синтетический горизонт", exact=True
+            ).count()
+            == 1
+        )
+        print(
+            "Library, imported catalog work and database session survived application restart"
+        )
     else:
         for destination, button in [
             ("/catalog/", "Открыть каталог"),
@@ -96,6 +112,58 @@ with sync_playwright() as playwright:
                 path=str(artifacts / f"catalog-{width}.png"), full_page=True
             )
             page.goto(url + "/me/library/")
+        # The production UI uses the guarded test adapter: no live key or network.
+        external_requests = []
+        page.on(
+            "request",
+            lambda request: (
+                external_requests.append(request.url)
+                if "/catalog/external/" in request.url
+                else None
+            ),
+        )
+        page.goto(url + "/catalog/")
+        page.get_by_label("Название произведения").fill("горизонт")
+        page.wait_for_timeout(200)
+        assert len(external_requests) == 0  # No search as the user types.
+        page.get_by_label("Название произведения").press("Enter")
+        page.locator("#external-results .server-work").first.wait_for()
+        assert page.locator("#external-results .server-work").count() == 3
+        assert len(external_requests) == 1
+        assert page.get_by_text("Synthetic Original", exact=True).is_visible()
+        assert page.get_by_text("Год не указан", exact=True).is_visible()
+        assert page.locator(".external-ratings dt").filter(has_text="IMDb").count() == 3
+        for width in [1440, 390]:
+            page.set_viewport_size({"width": width, "height": 960})
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            page.screenshot(path=str(artifacts / f"search-{width}.png"), full_page=True)
+        page.get_by_role("link", name="Следующая страница Кинопоиска").click()
+        page.locator("#external-results .server-work").first.wait_for()
+        assert len(external_requests) == 2
+        assert (
+            page.get_by_role("link", name="Следующая страница Кинопоиска").count() == 0
+        )
+        page.goto(url + "/catalog/?q=горизонт")
+        page.locator("#external-results .server-work").first.wait_for()
+        page.locator("#external-results .server-work").first.get_by_role(
+            "button", name="Добавить в библиотеку"
+        ).click()
+        page.get_by_role(
+            "heading", name="Синтетический горизонт", exact=True
+        ).wait_for()
+        assert page.get_by_text("В вашей библиотеке", exact=True).is_visible()
+        for width in [1440, 390]:
+            page.set_viewport_size({"width": width, "height": 960})
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            page.screenshot(
+                path=str(artifacts / f"imported-{width}.png"), full_page=True
+            )
+        page.reload()
+        assert page.get_by_text("В вашей библиотеке", exact=True).is_visible()
+        page.goto(url + "/me/library/")
+        page.get_by_role(
+            "heading", name="Синтетический горизонт", exact=True
+        ).wait_for()
         page.keyboard.press("Tab")
         assert page.evaluate("document.activeElement.tagName") in {
             "A",
@@ -109,3 +177,14 @@ with sync_playwright() as playwright:
         )
     assert not errors, errors
     browser.close()
+
+if not reopen:
+    from catalog.models import ProviderAttempt, ExternalRef
+
+    assert (
+        ProviderAttempt.objects.count() == 3
+    )  # Empty local query + page 1 + explicit page 2.
+    assert ExternalRef.objects.filter(external_id="9000001").count() == 1
+    print(
+        f"T-008: fixture API attempts=3; live JSON=0; intercepted image attempts={len(image_requests)}; live images=0"
+    )

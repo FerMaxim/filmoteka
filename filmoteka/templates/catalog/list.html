@@ -1,1 +1,16 @@
-{% extends 'server_base.html' %}{% block title %}Каталог · Filmoteka{% endblock %}{% block content %}<h1>Каталог</h1><form method="get" class="server-search">{{ form.as_p }}<button class="primary" type="submit">Найти</button></form><div class="server-grid">{% for work in page %}<article class="server-work"><p class="meta">{{ work.get_kind_display }}</p><h2><a href="/works/{{ work.pk }}/">{{ work.title }}</a></h2><a class="secondary" href="/works/{{ work.pk }}/">Открыть</a></article>{% empty %}<p>Ничего не найдено. Попробуйте другое название.</p>{% endfor %}</div>{% include 'pagination.html' %}{% endblock %}
+{% extends 'server_base.html' %}{% load static %}
+{% block title %}Каталог · Filmoteka{% endblock %}
+{% block content %}
+<h1>Каталог</h1>
+<form method="get" class="server-search">{{ form.as_p }}<button class="primary" type="submit">Найти</button></form>
+<h2>Локальный каталог</h2>
+<div class="server-grid">{% for work in page %}<article class="server-work">
+{% include 'catalog/metadata.html' with item=work %}
+<p class="meta">{{ work.get_kind_display }}</p><h2><a href="/works/{{ work.pk }}/">{{ work.title }}</a></h2>
+<a class="secondary" href="/works/{{ work.pk }}/">Открыть</a></article>
+{% empty %}<p>Локальных совпадений нет. Попробуйте другое название или выберите результат Кинопоиска.</p>{% endfor %}</div>
+{% include 'pagination.html' %}
+{% if query %}<section aria-labelledby="external-title"><h2 id="external-title">Кинопоиск</h2>
+<div id="external-results" aria-live="polite" data-source="/catalog/external/?q={{ query|urlencode }}&amp;external_page={{ request.GET.external_page|default:'1' }}"><p role="status">Ищем произведения…</p><a href="/catalog/external/?q={{ query|urlencode }}">Открыть внешнюю выдачу</a></div></section>{% endif %}
+
+{% endblock %}

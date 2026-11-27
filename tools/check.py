@@ -59,7 +59,7 @@ def test_env():
             key: value
             for key, value in os.environ.items()
             if not key.upper().startswith(
-                ("PG", "POSTGRES_", "DJANGO_", "FILMOTEKA_TEST_")
+                ("PG", "POSTGRES_", "DJANGO_", "FILMOTEKA_TEST_", "KINOPOISK_")
             )
             and key.upper() != "DATABASE_URL"
         },

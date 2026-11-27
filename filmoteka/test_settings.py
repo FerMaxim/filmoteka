@@ -12,3 +12,11 @@ DATABASES = {
         "TEST": {"NAME": DATABASES["default"]["NAME"]},
     }
 }
+
+# Guarded disposable database only; never contact the real provider in tests.
+KINOPOISK_ENABLED = True
+KINOPOISK_DATA_APPROVED = True
+KINOPOISK_API_KEY = "synthetic-fixture-key"
+KINOPOISK_REQUEST_BUDGET = 450
+KINOPOISK_POSTERS_APPROVED = True
+KINOPOISK_TEST_FIXTURES = True

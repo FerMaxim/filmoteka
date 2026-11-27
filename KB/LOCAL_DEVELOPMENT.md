@@ -76,3 +76,9 @@ uv run --locked --no-sync python tools/check.py full
 
 
 Прямой запуск `tools.browser` до django.setup и подготовки данных проверяет тестовые координаты через validate_target, затем требует backend filmoteka.test_postgresql и подтверждает identity соединения. Обычные настройки dev отклоняются до подключения и записи. Проверка реального входа с главной и возврата в каталог/библиотеку включена в full/browser; `prototypes/home_verify.py` отдельно проверяет гостевые переходы и временный сценарий через /prototype/.
+
+## Проверка интеграции каталога T-008
+
+`python tools/check.py target tests/test_kinopoisk.py` использует fixtures и отдельный кластер PostgreSQL. `quick` проверяет чистый адаптер без сети, `full` дополнительно проверяет старую схему, HTTP, браузер и restart; снимки — test-results/T-008. Диспетчер удаляет KINOPOISK_* из наследуемого окружения, guarded test_settings включает только вымышленные ответы. Подмена изображений в Playwright выполняется локальным route. Тестовый ключ синтетический и не является секретом поставщика.
+
+Dev по умолчанию не вызывает API. Переменные KINOPOISK_ENABLED / KINOPOISK_DATA_APPROVED / KINOPOISK_POSTERS_APPROVED из .env.example остаются 0 до подтверждения прав; не включать их для тестов. Настройка живого ключа и ограниченный smoke выполняются отдельно в рамках T-008 после проверки условий. Серверные команды этим изменением не добавляются.
